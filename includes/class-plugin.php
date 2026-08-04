@@ -47,6 +47,7 @@ final class Plugin {
 		add_action( 'dls_prune_lockouts', array( $this, 'prune_lockouts' ) ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- 3-letter plugin prefix.
 
 		( new Limit_Login() )->hook();
+		( new Two_Factor() )->hook();
 	}
 
 	/**

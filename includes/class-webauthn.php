@@ -145,11 +145,13 @@ class WebAuthn {
 			true,
 			true
 		);
+		// phpcs:disable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Third-party lbuchs/WebAuthn return object; property names are fixed by the library.
 		return array(
 			'credential_id' => self::b64url_encode( self::to_binary( $data->credentialId ) ),
 			'public_key'    => (string) $data->credentialPublicKey,
 			'sign_count'    => (int) $data->signatureCounter,
 		);
+		// phpcs:enable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 	}
 
 	/**

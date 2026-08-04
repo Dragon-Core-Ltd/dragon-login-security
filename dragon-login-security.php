@@ -43,6 +43,8 @@ require_once DLS_PLUGIN_DIR . 'includes/class-credentials.php';
 require_once DLS_PLUGIN_DIR . 'includes/class-webauthn.php';
 require_once DLS_PLUGIN_DIR . 'includes/providers/class-provider-passkey.php';
 require_once DLS_PLUGIN_DIR . 'includes/class-limit-login.php';
+require_once DLS_PLUGIN_DIR . 'includes/class-login-token.php';
+require_once DLS_PLUGIN_DIR . 'includes/class-two-factor.php';
 require_once DLS_PLUGIN_DIR . 'includes/class-plugin.php';
 
 /**

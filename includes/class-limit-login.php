@@ -33,7 +33,7 @@ class Limit_Login {
 	 * Register hooks.
 	 */
 	public function hook(): void {
-		add_filter( 'authenticate', array( $this, 'block_locked' ), 30, 2 );
+		add_filter( 'authenticate', array( $this, 'block_locked' ), 30, 1 );
 		add_action( 'wp_login_failed', array( $this, 'on_failure' ), 10, 2 );
 		add_action( 'wp_login', array( $this, 'on_success' ), 10, 2 );
 	}
@@ -90,10 +90,9 @@ class Limit_Login {
 	 * Reject authentication while locked, regardless of credentials.
 	 *
 	 * @param null|\WP_User|\WP_Error $user Auth result so far.
-	 * @param string                  $username Username.
 	 * @return null|\WP_User|\WP_Error
 	 */
-	public function block_locked( $user, $username ) {
+	public function block_locked( $user ) {
 		$ip = IP::current();
 		if ( $this->is_locked( $ip ) ) {
 			return new \WP_Error(
