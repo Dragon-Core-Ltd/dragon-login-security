@@ -49,6 +49,11 @@ final class Plugin {
 		( new Limit_Login() )->hook();
 		( new Two_Factor() )->hook();
 		new Integration();
+
+		if ( is_admin() ) {
+			( new Ajax() )->hook();
+			( new User_Profile() )->hook();
+		}
 	}
 
 	/**

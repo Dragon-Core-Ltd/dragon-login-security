@@ -1,0 +1,7 @@
+.dls-2fa .dls-muted { color: #646970; font-size: 12px; }
+.dls-2fa .dls-on { color: #007017; font-weight: 600; }
+.dls-2fa #dls-passkey-list { margin: 0 0 10px; }
+.dls-2fa #dls-passkey-list li { margin: 4px 0; }
+.dls-2fa #dls-passkey-list .dls-muted { margin: 0 8px; }
+.dls-2fa #dls-totp-secret { font-size: 15px; letter-spacing: 1px; background: #f6f7f7; padding: 4px 8px; }
+.dls-2fa #dls-totp-msg { margin-left: 8px; }

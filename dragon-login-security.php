@@ -47,6 +47,12 @@ require_once DLS_PLUGIN_DIR . 'includes/class-login-token.php';
 require_once DLS_PLUGIN_DIR . 'includes/class-two-factor.php';
 require_once DLS_PLUGIN_DIR . 'includes/class-events.php';
 require_once DLS_PLUGIN_DIR . 'includes/class-integration.php';
+
+if ( is_admin() ) {
+	require_once DLS_PLUGIN_DIR . 'includes/class-ajax.php';
+	require_once DLS_PLUGIN_DIR . 'includes/class-user-profile.php';
+}
+
 require_once DLS_PLUGIN_DIR . 'includes/class-plugin.php';
 
 /**
