@@ -35,6 +35,11 @@ if ( file_exists( DLS_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
 	require_once DLS_PLUGIN_DIR . 'vendor/autoload.php';
 }
 
+require_once DLS_PLUGIN_DIR . 'includes/class-crypto.php';
+require_once DLS_PLUGIN_DIR . 'includes/class-ip.php';
+require_once DLS_PLUGIN_DIR . 'includes/providers/class-provider-totp.php';
+require_once DLS_PLUGIN_DIR . 'includes/providers/class-provider-backup-codes.php';
+require_once DLS_PLUGIN_DIR . 'includes/class-limit-login.php';
 require_once DLS_PLUGIN_DIR . 'includes/class-plugin.php';
 
 /**
