@@ -48,6 +48,7 @@ final class Plugin {
 
 		( new Limit_Login() )->hook();
 		( new Two_Factor() )->hook();
+		new Integration();
 	}
 
 	/**

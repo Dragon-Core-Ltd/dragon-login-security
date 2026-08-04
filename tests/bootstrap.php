@@ -37,6 +37,19 @@ if ( ! function_exists( 'wp_parse_url' ) ) {
 	}
 }
 
+if ( ! function_exists( 'add_action' ) ) {
+	function add_action( ...$args ) {
+		unset( $args );
+		return true;
+	}
+}
+if ( ! function_exists( 'add_filter' ) ) {
+	function add_filter( ...$args ) {
+		unset( $args );
+		return true;
+	}
+}
+
 $GLOBALS['dls_test_transients'] = array();
 
 if ( ! function_exists( 'get_transient' ) ) {
@@ -66,3 +79,5 @@ require_once __DIR__ . '/../includes/providers/class-provider-backup-codes.php';
 require_once __DIR__ . '/../includes/class-limit-login.php';
 require_once __DIR__ . '/../includes/class-webauthn.php';
 require_once __DIR__ . '/../includes/class-login-token.php';
+require_once __DIR__ . '/../includes/class-events.php';
+require_once __DIR__ . '/../includes/class-integration.php';
