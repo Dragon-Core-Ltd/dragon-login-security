@@ -157,6 +157,25 @@ class Two_Factor {
 			return; // No second factor: normal login proceeds.
 		}
 
+		/**
+		 * Whether to challenge this interactive login for a second factor. Add-ons
+		 * (e.g. Login Security Pro's trusted devices) may return false to skip the
+		 * challenge for a device already verified. This filter is consulted ONLY on
+		 * the interactive form-login path; non-interactive credential auth
+		 * (XML-RPC/REST) is rejected for 2FA users regardless, so a trusted-device
+		 * skip can never become a non-interactive bypass.
+		 *
+		 * @param bool     $should Whether to challenge (default true).
+		 * @param \WP_User $user   The user who passed primary auth.
+		 */
+		$should = (bool) apply_filters( 'dls_should_challenge', true, $user ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- 3-letter plugin prefix.
+		if ( ! $should ) {
+			// A trusted device: let the login wp_signon already established stand.
+			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- 3-letter plugin prefix.
+			do_action( 'dls_login_event', '2fa.skipped', array( 'object_id' => $user->ID, 'object_name' => $user->user_login ) );
+			return;
+		}
+
 		// Undo the auth cookie/session wp_signon just established.
 		wp_clear_auth_cookie();
 		wp_destroy_current_session();
@@ -202,6 +221,14 @@ class Two_Factor {
 		if ( $this->validate_factor( $user_id, $method ) ) {
 			$limit->clear( IP::current() );
 			wp_set_auth_cookie( $user_id, $remember );
+			/**
+			 * Fires after a second factor is verified and the auth cookie is set.
+			 * Add-ons (e.g. Login Security Pro) use this to remember a trusted
+			 * device based on their own opt-in field on the challenge form.
+			 *
+			 * @param int $user_id The now fully-authenticated user.
+			 */
+			do_action( 'dls_2fa_passed', $user_id ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- 3-letter plugin prefix.
 			$this->emit( '2fa.passed', $user );
 			wp_safe_redirect( $redirect );
 			exit;

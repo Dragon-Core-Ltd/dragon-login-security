@@ -29,6 +29,7 @@ class Events {
 			'2fa.disabled'      => array( __( 'Two-factor disabled', 'dragon-login-security' ), 3, 'user' ),
 			'2fa.passed'        => array( __( 'Two-factor passed', 'dragon-login-security' ), 1, 'user' ),
 			'2fa.failed'        => array( __( 'Two-factor failed', 'dragon-login-security' ), 3, 'user' ),
+			'2fa.skipped'       => array( __( 'Two-factor skipped (trusted device)', 'dragon-login-security' ), 1, 'user' ),
 			'passkey.added'     => array( __( 'Passkey added', 'dragon-login-security' ), 2, 'user' ),
 			'passkey.removed'   => array( __( 'Passkey removed', 'dragon-login-security' ), 2, 'user' ),
 		);

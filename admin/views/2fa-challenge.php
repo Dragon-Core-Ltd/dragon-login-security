@@ -60,6 +60,17 @@ login_header( __( 'Two-Factor Authentication', 'dragon-login-security' ) );
 			<button type="submit" class="button button-primary button-large" style="width:100%;"><?php esc_html_e( 'Verify', 'dragon-login-security' ); ?></button>
 		</p>
 	<?php endif; ?>
+
+	<?php
+	/**
+	 * Fires inside the 2FA challenge form. Add-ons (e.g. Login Security Pro's
+	 * trusted devices) use this to inject an opt-in field such as "remember this
+	 * device".
+	 *
+	 * @param \WP_User $user The user being challenged.
+	 */
+	do_action( 'dls_challenge_form', $dragonloginsecurity_c['user'] ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- 3-letter plugin prefix.
+	?>
 </form>
 
 <?php if ( $dragonloginsecurity_has( 'passkey' ) && ! empty( $dragonloginsecurity_c['wa_args']['args'] ) ) : ?>
