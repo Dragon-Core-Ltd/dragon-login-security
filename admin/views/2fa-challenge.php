@@ -65,7 +65,7 @@ login_header( __( 'Two-Factor Authentication', 'dragon-login-security' ) );
 <?php if ( $dragonloginsecurity_has( 'passkey' ) && ! empty( $dragonloginsecurity_c['wa_args']['args'] ) ) : ?>
 <script>
 ( function () {
-	var opts = <?php echo wp_json_encode( $dragonloginsecurity_c['wa_args']['args'] ); ?>;
+	var opts = <?php echo wp_json_encode( $dragonloginsecurity_c['wa_args']['args'], JSON_HEX_TAG | JSON_HEX_AMP ); ?>;
 	function b64urlToBuf( s ) {
 		s = s.replace( /-/g, '+' ).replace( /_/g, '/' );
 		while ( s.length % 4 ) { s += '='; }

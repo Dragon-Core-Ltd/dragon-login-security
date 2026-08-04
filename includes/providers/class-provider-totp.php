@@ -113,17 +113,32 @@ class Provider_TOTP {
 	 * @return bool
 	 */
 	public static function verify( string $secret, string $code, int $window = 1, int $now = 0 ): bool {
+		return self::verify_step( $secret, $code, $window, $now ) >= 0;
+	}
+
+	/**
+	 * Verify a code and return the matching time-step counter, or -1. The step
+	 * lets callers reject replay of a captured code within its validity window.
+	 *
+	 * @param string $secret Base32 secret.
+	 * @param string $code   Submitted code.
+	 * @param int    $window Steps of tolerance either side.
+	 * @param int    $now    Current time (injectable for tests).
+	 * @return int Matching step counter, or -1 if no match.
+	 */
+	public static function verify_step( string $secret, string $code, int $window = 1, int $now = 0 ): int {
 		$code = preg_replace( '/\D/', '', $code );
 		if ( strlen( (string) $code ) !== self::DIGITS ) {
-			return false;
+			return -1;
 		}
 		$now = $now > 0 ? $now : time();
 		for ( $i = -$window; $i <= $window; $i++ ) {
-			if ( hash_equals( self::code_at( $secret, $now + ( $i * self::PERIOD ) ), (string) $code ) ) {
-				return true;
+			$ts = $now + ( $i * self::PERIOD );
+			if ( hash_equals( self::code_at( $secret, $ts ), (string) $code ) ) {
+				return (int) floor( $ts / self::PERIOD );
 			}
 		}
-		return false;
+		return -1;
 	}
 
 	/**

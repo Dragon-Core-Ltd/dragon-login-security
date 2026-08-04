@@ -209,7 +209,8 @@ class Limit_Login {
 		 * @param string $code  Event code.
 		 * @param array  $event Event payload.
 		 */
-		do_action( // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- 3-letter plugin prefix.
+		do_action(
+			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- 3-letter plugin prefix.
 			'dls_login_event',
 			$code,
 			array(

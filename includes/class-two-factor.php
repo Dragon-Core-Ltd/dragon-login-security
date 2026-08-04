@@ -21,17 +21,96 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Two_Factor {
 
 	/**
-	 * Register hooks.
-	 */
-	public function hook(): void {
-		add_action( 'wp_login', array( $this, 'maybe_challenge' ), 10, 2 );
-		add_action( 'login_form_dls_2fa', array( $this, 'handle_submit' ) );
-	}
-
-	/**
 	 * TOTP user-meta key.
 	 */
 	const TOTP_META = 'dls_totp_secret';
+
+	/**
+	 * Whether the current request authenticated via an application password
+	 * (a distinct, 2FA-exempt credential).
+	 *
+	 * @var bool
+	 */
+	private bool $app_password = false;
+
+	/**
+	 * Register hooks.
+	 */
+	public function hook(): void {
+		// Interactive form login: challenge at priority 5 so it runs before
+		// Limit_Login::on_success (priority 10) clears the failure counter.
+		add_action( 'wp_login', array( $this, 'maybe_challenge' ), 5, 2 );
+		add_action( 'login_form_dls_2fa', array( $this, 'handle_submit' ) );
+
+		// Enforce 2FA at the authenticate stage too, so non-interactive credential
+		// paths (XML-RPC, REST with a real password) cannot skip the second factor
+		// the way the wp_login-only hook would let them.
+		add_filter( 'authenticate', array( $this, 'enforce_non_interactive' ), 40, 1 );
+		add_action( 'application_password_did_authenticate', array( $this, 'mark_app_password' ) );
+	}
+
+	/**
+	 * Flag that this request used an application password.
+	 */
+	public function mark_app_password(): void {
+		$this->app_password = true;
+	}
+
+	/**
+	 * Reject non-interactive credential authentication for 2FA users. Regular
+	 * passwords over XML-RPC/REST must not bypass the second factor; application
+	 * passwords (a separate, user-created credential) are allowed through.
+	 *
+	 * @param null|\WP_User|\WP_Error $user Auth result so far.
+	 * @return null|\WP_User|\WP_Error
+	 */
+	public function enforce_non_interactive( $user ) {
+		if ( ! ( $user instanceof \WP_User ) || ! $this->user_has_2fa( $user->ID ) ) {
+			return $user;
+		}
+		$non_interactive = ( defined( 'XMLRPC_REQUEST' ) && XMLRPC_REQUEST )
+			|| ( defined( 'REST_REQUEST' ) && REST_REQUEST );
+		if ( $non_interactive && ! $this->app_password ) {
+			return new \WP_Error(
+				'dls_2fa_required',
+				__( 'Two-factor authentication is required for this account. Create an application password for programmatic access.', 'dragon-login-security' )
+			);
+		}
+		return $user;
+	}
+
+	/**
+	 * The decrypted TOTP secret for a user, or null. Fails safe: if a stored
+	 * secret cannot be decrypted (e.g. after a wp_salt rotation) it is cleared
+	 * and the factor disabled, rather than leaving the user permanently unable
+	 * to pass a factor they are still offered.
+	 *
+	 * @param int $user_id User id.
+	 * @return string|null
+	 */
+	private function totp_secret( int $user_id ): ?string {
+		$stored = (string) get_user_meta( $user_id, self::TOTP_META, true );
+		if ( '' === $stored ) {
+			return null;
+		}
+		$secret = Crypto::decrypt( $stored );
+		if ( null === $secret ) {
+			delete_user_meta( $user_id, self::TOTP_META );
+			$user = get_userdata( $user_id );
+			do_action(
+				// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- 3-letter plugin prefix.
+				'dls_login_event',
+				'2fa.disabled',
+				array(
+					'object_id'   => $user_id,
+					'object_name' => $user ? $user->user_login : (string) $user_id,
+					'message'     => __( 'Authenticator secret could not be decrypted and was cleared.', 'dragon-login-security' ),
+				)
+			);
+			return null;
+		}
+		return $secret;
+	}
 
 	/**
 	 * Whether a user has a primary second factor (TOTP or passkey). Backup codes
@@ -41,7 +120,7 @@ class Two_Factor {
 	 * @return bool
 	 */
 	public function user_has_2fa( int $user_id ): bool {
-		if ( '' !== (string) get_user_meta( $user_id, self::TOTP_META, true ) ) {
+		if ( null !== $this->totp_secret( $user_id ) ) {
 			return true;
 		}
 		return Provider_Passkey::is_enrolled( $user_id );
@@ -58,7 +137,7 @@ class Two_Factor {
 		if ( Provider_Passkey::is_enrolled( $user_id ) ) {
 			$methods[] = 'passkey';
 		}
-		if ( '' !== (string) get_user_meta( $user_id, self::TOTP_META, true ) ) {
+		if ( null !== $this->totp_secret( $user_id ) ) {
 			$methods[] = 'totp';
 		}
 		if ( Provider_Backup_Codes::remaining( $user_id ) > 0 ) {
@@ -93,7 +172,7 @@ class Two_Factor {
 	 * Handle the interim 2FA form submission.
 	 */
 	public function handle_submit(): void {
-		if ( 'POST' !== ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) {
+		if ( 'POST' !== sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ?? '' ) ) ) {
 			return;
 		}
 
@@ -112,14 +191,25 @@ class Two_Factor {
 			exit;
 		}
 
+		// The second-factor step shares the brute-force lockout, so a password
+		// holder cannot make unlimited code guesses here.
+		$limit = new Limit_Login();
+		if ( $limit->is_locked( IP::current() ) ) {
+			wp_safe_redirect( wp_login_url() );
+			exit;
+		}
+
 		if ( $this->validate_factor( $user_id, $method ) ) {
+			$limit->clear( IP::current() );
 			wp_set_auth_cookie( $user_id, $remember );
 			$this->emit( '2fa.passed', $user );
 			wp_safe_redirect( $redirect );
 			exit;
 		}
 
-		// Failure: feed the brute-force machinery and re-challenge with a fresh token.
+		// Failure: feed the brute-force machinery (WordPress core's own hook) and
+		// re-challenge with a fresh token.
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Intentionally firing WordPress core's wp_login_failed.
 		do_action( 'wp_login_failed', $user->user_login, new \WP_Error( 'dls_2fa_failed', 'Invalid code.' ) );
 		$this->emit( '2fa.failed', $user );
 		$this->render_challenge(
@@ -143,9 +233,22 @@ class Two_Factor {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Guarded by the verified login token in handle_submit().
 		switch ( $method ) {
 			case 'totp':
-				$secret = Crypto::decrypt( (string) get_user_meta( $user_id, self::TOTP_META, true ) );
+				$secret = $this->totp_secret( $user_id );
 				$code   = isset( $_POST['dls_code'] ) ? sanitize_text_field( wp_unslash( $_POST['dls_code'] ) ) : '';
-				return null !== $secret && Provider_TOTP::verify( $secret, $code );
+				if ( null === $secret ) {
+					return false;
+				}
+				$step = Provider_TOTP::verify_step( $secret, $code );
+				if ( $step < 0 ) {
+					return false;
+				}
+				// Reject replay of a captured code within its validity window.
+				$last = (int) get_user_meta( $user_id, 'dls_totp_last_step', true );
+				if ( $step <= $last ) {
+					return false;
+				}
+				update_user_meta( $user_id, 'dls_totp_last_step', $step );
+				return true;
 
 			case 'backup':
 				$code = isset( $_POST['dls_code'] ) ? sanitize_text_field( wp_unslash( $_POST['dls_code'] ) ) : '';
@@ -205,7 +308,8 @@ class Two_Factor {
 	 * @param \WP_User $user User.
 	 */
 	private function emit( string $code, \WP_User $user ): void {
-		do_action( // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- 3-letter plugin prefix.
+		do_action(
+			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- 3-letter plugin prefix.
 			'dls_login_event',
 			$code,
 			array(

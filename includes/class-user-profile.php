@@ -61,6 +61,7 @@ class User_Profile {
 			return;
 		}
 		$dragonloginsecurity_user     = $user;
+		$dragonloginsecurity_is_self  = ( get_current_user_id() === $user->ID );
 		$dragonloginsecurity_totp_on  = '' !== (string) get_user_meta( $user->ID, Two_Factor::TOTP_META, true );
 		$dragonloginsecurity_passkeys = Credentials::for_user( $user->ID );
 		$dragonloginsecurity_backup_n = Provider_Backup_Codes::remaining( $user->ID );

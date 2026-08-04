@@ -29,7 +29,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 					</li>
 				<?php endforeach; ?>
 			</ul>
-			<button type="button" class="button" id="dls-add-passkey"><?php esc_html_e( 'Add a passkey', 'dragon-login-security' ); ?></button>
+			<?php if ( $dragonloginsecurity_is_self ) : ?>
+				<button type="button" class="button" id="dls-add-passkey"><?php esc_html_e( 'Add a passkey', 'dragon-login-security' ); ?></button>
+			<?php endif; ?>
 			<p class="description"><?php esc_html_e( 'A passkey lets you sign in with your device (Face ID, Touch ID, Windows Hello, or a security key) instead of a code.', 'dragon-login-security' ); ?></p>
 		</td>
 	</tr>
@@ -40,6 +42,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<p><span class="dls-on"><?php esc_html_e( 'Enabled', 'dragon-login-security' ); ?></span>
 					<button type="button" class="button dls-totp-disable"><?php esc_html_e( 'Disable', 'dragon-login-security' ); ?></button>
 				</p>
+			<?php elseif ( ! $dragonloginsecurity_is_self ) : ?>
+				<p class="dls-muted"><?php esc_html_e( 'Not set up. The user enables this from their own profile.', 'dragon-login-security' ); ?></p>
 			<?php else : ?>
 				<button type="button" class="button" id="dls-totp-setup"><?php esc_html_e( 'Set up authenticator app', 'dragon-login-security' ); ?></button>
 				<div id="dls-totp-panel" style="display:none;margin-top:10px;">
@@ -65,7 +69,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 				echo esc_html( sprintf( _n( '%d unused code remaining.', '%d unused codes remaining.', $dragonloginsecurity_backup_n, 'dragon-login-security' ), $dragonloginsecurity_backup_n ) );
 				?>
 			</p>
+			<?php if ( $dragonloginsecurity_is_self ) : ?>
 			<button type="button" class="button" id="dls-backup-generate"><?php esc_html_e( 'Generate new backup codes', 'dragon-login-security' ); ?></button>
+			<?php endif; ?>
 			<div id="dls-backup-panel" style="display:none;margin-top:10px;">
 				<pre id="dls-backup-codes" style="background:#f6f7f7;padding:12px;border-radius:4px;"></pre>
 				<button type="button" class="button button-primary" id="dls-backup-download"><?php esc_html_e( 'Download codes', 'dragon-login-security' ); ?></button>
