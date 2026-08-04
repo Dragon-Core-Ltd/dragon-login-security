@@ -53,6 +53,7 @@ final class Plugin {
 		if ( is_admin() ) {
 			( new Ajax() )->hook();
 			( new User_Profile() )->hook();
+			( new Admin() )->hook();
 		}
 	}
 

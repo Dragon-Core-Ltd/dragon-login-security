@@ -51,9 +51,14 @@ require_once DLS_PLUGIN_DIR . 'includes/class-integration.php';
 if ( is_admin() ) {
 	require_once DLS_PLUGIN_DIR . 'includes/class-ajax.php';
 	require_once DLS_PLUGIN_DIR . 'includes/class-user-profile.php';
+	require_once DLS_PLUGIN_DIR . 'includes/class-admin.php';
 }
 
 require_once DLS_PLUGIN_DIR . 'includes/class-plugin.php';
+
+if ( defined( 'WP_CLI' ) && WP_CLI ) {
+	require_once DLS_PLUGIN_DIR . 'includes/class-cli.php';
+}
 
 /**
  * Activation: create tables, seed options, schedule cron.
