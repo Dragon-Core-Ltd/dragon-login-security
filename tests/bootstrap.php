@@ -31,9 +31,16 @@ if ( ! function_exists( 'wp_json_encode' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wp_parse_url' ) ) {
+	function wp_parse_url( $url, $component = -1 ) {
+		return parse_url( $url, $component );
+	}
+}
+
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../includes/class-crypto.php';
 require_once __DIR__ . '/../includes/class-ip.php';
 require_once __DIR__ . '/../includes/providers/class-provider-totp.php';
 require_once __DIR__ . '/../includes/providers/class-provider-backup-codes.php';
 require_once __DIR__ . '/../includes/class-limit-login.php';
+require_once __DIR__ . '/../includes/class-webauthn.php';
