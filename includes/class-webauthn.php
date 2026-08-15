@@ -122,7 +122,7 @@ class WebAuthn {
 			null,
 			$exclude
 		);
-		self::store_challenge( 'dls_wa_reg_' . $user_id, $lib->getChallenge()->getBinaryString() );
+		self::store_challenge( 'dragonloginsecurity_wa_reg_' . $user_id, $lib->getChallenge()->getBinaryString() );
 		return json_decode( wp_json_encode( $args ), true );
 	}
 
@@ -136,7 +136,7 @@ class WebAuthn {
 	 * @throws \Exception On verification failure.
 	 */
 	public static function verify_registration( int $user_id, string $client_data_b64, string $attestation_b64 ): array {
-		$challenge = self::take_challenge( 'dls_wa_reg_' . $user_id );
+		$challenge = self::take_challenge( 'dragonloginsecurity_wa_reg_' . $user_id );
 		$lib       = self::lib();
 		$data      = $lib->processCreate(
 			self::raw_b64_decode( $client_data_b64 ),
@@ -165,7 +165,7 @@ class WebAuthn {
 		$ids   = array_map( array( self::class, 'b64url_decode' ), Credentials::credential_ids_for_user( $user_id ) );
 		$args  = $lib->getGetArgs( $ids, 60, true, true, true, true, true, true );
 		$token = bin2hex( random_bytes( 16 ) );
-		self::store_challenge( 'dls_wa_auth_' . $token, $lib->getChallenge()->getBinaryString() );
+		self::store_challenge( 'dragonloginsecurity_wa_auth_' . $token, $lib->getChallenge()->getBinaryString() );
 		return array(
 			'args'  => json_decode( wp_json_encode( $args ), true ),
 			'token' => $token,
@@ -185,7 +185,7 @@ class WebAuthn {
 	 * @return bool
 	 */
 	public static function verify_authentication( int $user_id, string $token, string $credential_id_b64u, string $client_data_b64, string $auth_data_b64, string $signature_b64 ): bool {
-		$challenge = self::take_challenge( 'dls_wa_auth_' . $token );
+		$challenge = self::take_challenge( 'dragonloginsecurity_wa_auth_' . $token );
 		if ( '' === $challenge ) {
 			return false;
 		}

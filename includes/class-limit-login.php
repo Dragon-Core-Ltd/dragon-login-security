@@ -2,7 +2,7 @@
 /**
  * Brute-force protection. Live failed-attempt counters and lock state live in
  * transients (self-expiring, so the attacker-driven path never writes the DB per
- * attempt); the wp_dls_lockouts table records only actual lockout events, at
+ * attempt); the wp_dragonloginsecurity_lockouts table records only actual lockout events, at
  * tier boundaries, for reporting.
  *
  * @package DragonLoginSecurity
@@ -83,7 +83,7 @@ class Limit_Login {
 		if ( $this->in_list( $ip, 'deny' ) ) {
 			return true;
 		}
-		return (bool) get_transient( 'dls_lock_' . md5( $ip ) );
+		return (bool) get_transient( 'dragonloginsecurity_lock_' . md5( $ip ) );
 	}
 
 	/**
@@ -96,7 +96,7 @@ class Limit_Login {
 		$ip = IP::current();
 		if ( $this->is_locked( $ip ) ) {
 			return new \WP_Error(
-				'dls_locked',
+				'dragonloginsecurity_locked',
 				__( 'Too many failed attempts. Please try again later.', 'dragon-login-security' )
 			);
 		}
@@ -117,7 +117,7 @@ class Limit_Login {
 			return 0;
 		}
 
-		$key   = 'dls_fail_' . md5( $ip );
+		$key   = 'dragonloginsecurity_fail_' . md5( $ip );
 		$count = (int) get_transient( $key ) + 1;
 		set_transient( $key, $count, self::WINDOW );
 
@@ -125,7 +125,7 @@ class Limit_Login {
 
 		$seconds = $this->lockout_seconds( $count );
 		if ( $seconds > 0 ) {
-			set_transient( 'dls_lock_' . md5( $ip ), 1, $seconds );
+			set_transient( 'dragonloginsecurity_lock_' . md5( $ip ), 1, $seconds );
 			if ( $this->is_tier_boundary( $count ) ) {
 				$this->record_lockout( $ip, $username, $count );
 				$this->emit( 'user.lockout', $ip, $username, $count );
@@ -155,8 +155,8 @@ class Limit_Login {
 		if ( '' === $ip ) {
 			return;
 		}
-		delete_transient( 'dls_fail_' . md5( $ip ) );
-		delete_transient( 'dls_lock_' . md5( $ip ) );
+		delete_transient( 'dragonloginsecurity_fail_' . md5( $ip ) );
+		delete_transient( 'dragonloginsecurity_lock_' . md5( $ip ) );
 	}
 
 	/**
@@ -189,7 +189,7 @@ class Limit_Login {
 	 * @return bool
 	 */
 	private function in_list( string $ip, string $type ): bool {
-		$settings = get_option( 'dls_settings', array() );
+		$settings = get_option( 'dragonloginsecurity_settings', array() );
 		$list     = is_array( $settings ) && ! empty( $settings[ $type . '_ips' ] ) ? (array) $settings[ $type . '_ips' ] : array();
 		return in_array( $ip, $list, true );
 	}
@@ -210,8 +210,7 @@ class Limit_Login {
 		 * @param array  $event Event payload.
 		 */
 		do_action(
-			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- 3-letter plugin prefix.
-			'dls_login_event',
+			'dragonloginsecurity_login_event',
 			$code,
 			array(
 				'object_name' => $username,

@@ -22,17 +22,17 @@ class Ajax {
 	 */
 	public function hook(): void {
 		$actions = array(
-			'dls_totp_setup',
-			'dls_totp_confirm',
-			'dls_totp_disable',
-			'dls_passkey_options',
-			'dls_passkey_register',
-			'dls_passkey_remove',
-			'dls_backup_generate',
-			'dls_backup_confirm',
+			'dragonloginsecurity_totp_setup',
+			'dragonloginsecurity_totp_confirm',
+			'dragonloginsecurity_totp_disable',
+			'dragonloginsecurity_passkey_options',
+			'dragonloginsecurity_passkey_register',
+			'dragonloginsecurity_passkey_remove',
+			'dragonloginsecurity_backup_generate',
+			'dragonloginsecurity_backup_confirm',
 		);
 		foreach ( $actions as $action ) {
-			add_action( 'wp_ajax_' . $action, array( $this, str_replace( 'dls_', '', $action ) ) );
+			add_action( 'wp_ajax_' . $action, array( $this, str_replace( 'dragonloginsecurity_', '', $action ) ) );
 		}
 	}
 
@@ -76,8 +76,7 @@ class Ajax {
 	private function emit( string $code, int $user_id ): void {
 		$user = get_userdata( $user_id );
 		do_action(
-			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- 3-letter plugin prefix.
-			'dls_login_event',
+			'dragonloginsecurity_login_event',
 			$code,
 			array(
 				'object_id'   => $user_id,
@@ -92,7 +91,7 @@ class Ajax {
 	public function totp_setup(): void {
 		$user_id = $this->guard_self();
 		$secret  = Provider_TOTP::generate_secret();
-		set_transient( 'dls_totp_pending_' . $user_id, Crypto::encrypt( $secret ), 10 * MINUTE_IN_SECONDS );
+		set_transient( 'dragonloginsecurity_totp_pending_' . $user_id, Crypto::encrypt( $secret ), 10 * MINUTE_IN_SECONDS );
 
 		$user = get_userdata( $user_id );
 		wp_send_json_success(
@@ -108,7 +107,7 @@ class Ajax {
 	 */
 	public function totp_confirm(): void {
 		$user_id = $this->guard_self();
-		$pending = get_transient( 'dls_totp_pending_' . $user_id );
+		$pending = get_transient( 'dragonloginsecurity_totp_pending_' . $user_id );
 		$secret  = is_string( $pending ) ? Crypto::decrypt( $pending ) : null;
 		$code    = isset( $_POST['code'] ) ? sanitize_text_field( wp_unslash( $_POST['code'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in guard().
 
@@ -117,7 +116,7 @@ class Ajax {
 		}
 
 		update_user_meta( $user_id, Two_Factor::TOTP_META, Crypto::encrypt( $secret ) );
-		delete_transient( 'dls_totp_pending_' . $user_id );
+		delete_transient( 'dragonloginsecurity_totp_pending_' . $user_id );
 		$this->emit( '2fa.enrolled', $user_id );
 		wp_send_json_success( array( 'message' => __( 'Authenticator app enabled.', 'dragon-login-security' ) ) );
 	}

@@ -24,7 +24,7 @@ class IP {
 	 * @return string Empty string when none resolvable.
 	 */
 	public static function current(): string {
-		$settings    = get_option( 'dls_settings', array() );
+		$settings    = get_option( 'dragonloginsecurity_settings', array() );
 		$trust_proxy = is_array( $settings ) && ! empty( $settings['trust_proxy'] );
 
 		$candidates = array( 'REMOTE_ADDR' );

@@ -1,6 +1,6 @@
 <?php
 /**
- * Data access for registered passkeys (wp_dls_credentials).
+ * Data access for registered passkeys (wp_dragonloginsecurity_credentials).
  *
  * @package DragonLoginSecurity
  */

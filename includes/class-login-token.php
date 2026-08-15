@@ -30,7 +30,7 @@ class Login_Token {
 	 * @return string
 	 */
 	private static function key( string $token ): string {
-		return 'dls_2fa_' . hash( 'sha256', $token );
+		return 'dragonloginsecurity_2fa_' . hash( 'sha256', $token );
 	}
 
 	/**

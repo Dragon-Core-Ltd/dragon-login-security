@@ -44,7 +44,9 @@ final class Plugin {
 	 * Constructor: wire hooks. (Feature units are added as they are built.)
 	 */
 	private function __construct() {
-		add_action( 'dls_prune_lockouts', array( $this, 'prune_lockouts' ) ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- 3-letter plugin prefix.
+		self::migrate_legacy_prefix();
+
+		add_action( 'dragonloginsecurity_prune_lockouts', array( $this, 'prune_lockouts' ) );
 
 		( new Limit_Login() )->hook();
 		( new Two_Factor() )->hook();
@@ -89,15 +91,45 @@ final class Plugin {
 	 * Deactivation.
 	 */
 	public function deactivate(): void {
-		wp_clear_scheduled_hook( 'dls_prune_lockouts' );
+		wp_clear_scheduled_hook( 'dragonloginsecurity_prune_lockouts' );
+	}
+
+	/**
+	 * Move options and the prune schedule off the pre-1.0.2 three-letter (dls_)
+	 * prefix.
+	 *
+	 * The prefix was renamed to the namespace-derived `dragonloginsecurity_` to
+	 * satisfy the WordPress.org uniqueness rule. Option values are carried across
+	 * once and the lockout-prune cron is re-pointed at the renamed hook. The
+	 * credentials and lockouts tables and the 2FA user-meta keys keep their
+	 * original names (matched by exact name), so no enrolment data is touched.
+	 */
+	private static function migrate_legacy_prefix(): void {
+		foreach ( array( 'db_version', 'settings' ) as $name ) {
+			if ( false === get_option( 'dragonloginsecurity_' . $name, false ) ) {
+				$legacy = get_option( 'dls_' . $name, null );
+				if ( null !== $legacy ) {
+					update_option( 'dragonloginsecurity_' . $name, $legacy );
+				}
+			}
+			delete_option( 'dls_' . $name );
+		}
+
+		$legacy_cron = wp_next_scheduled( 'dls_prune_lockouts' );
+		if ( $legacy_cron ) {
+			wp_unschedule_event( $legacy_cron, 'dls_prune_lockouts' );
+		}
+		if ( ! wp_next_scheduled( 'dragonloginsecurity_prune_lockouts' ) ) {
+			wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'dragonloginsecurity_prune_lockouts' );
+		}
 	}
 
 	/**
 	 * Register the daily lockout-prune cron (idempotent).
 	 */
 	private function register_cron(): void {
-		if ( ! wp_next_scheduled( 'dls_prune_lockouts' ) ) {
-			wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'dls_prune_lockouts' );
+		if ( ! wp_next_scheduled( 'dragonloginsecurity_prune_lockouts' ) ) {
+			wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'dragonloginsecurity_prune_lockouts' );
 		}
 	}
 
@@ -105,7 +137,7 @@ final class Plugin {
 	 * Create or migrate the tables.
 	 */
 	private function create_tables(): void {
-		if ( self::DB_VERSION === get_option( 'dls_db_version' ) ) {
+		if ( self::DB_VERSION === get_option( 'dragonloginsecurity_db_version' ) ) {
 			return;
 		}
 
@@ -146,7 +178,7 @@ final class Plugin {
 			) {$charset_collate};"
 		);
 
-		update_option( 'dls_db_version', self::DB_VERSION );
+		update_option( 'dragonloginsecurity_db_version', self::DB_VERSION );
 	}
 
 	/**

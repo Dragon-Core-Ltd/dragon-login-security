@@ -40,7 +40,7 @@ class Two_Factor {
 		// Interactive form login: challenge at priority 5 so it runs before
 		// Limit_Login::on_success (priority 10) clears the failure counter.
 		add_action( 'wp_login', array( $this, 'maybe_challenge' ), 5, 2 );
-		add_action( 'login_form_dls_2fa', array( $this, 'handle_submit' ) );
+		add_action( 'login_form_dragonloginsecurity_2fa', array( $this, 'handle_submit' ) );
 
 		// Enforce 2FA at the authenticate stage too, so non-interactive credential
 		// paths (XML-RPC, REST with a real password) cannot skip the second factor
@@ -72,7 +72,7 @@ class Two_Factor {
 			|| ( defined( 'REST_REQUEST' ) && REST_REQUEST );
 		if ( $non_interactive && ! $this->app_password ) {
 			return new \WP_Error(
-				'dls_2fa_required',
+				'dragonloginsecurity_2fa_required',
 				__( 'Two-factor authentication is required for this account. Create an application password for programmatic access.', 'dragon-login-security' )
 			);
 		}
@@ -98,8 +98,7 @@ class Two_Factor {
 			delete_user_meta( $user_id, self::TOTP_META );
 			$user = get_userdata( $user_id );
 			do_action(
-				// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- 3-letter plugin prefix.
-				'dls_login_event',
+				'dragonloginsecurity_login_event',
 				'2fa.disabled',
 				array(
 					'object_id'   => $user_id,
@@ -168,11 +167,18 @@ class Two_Factor {
 		 * @param bool     $should Whether to challenge (default true).
 		 * @param \WP_User $user   The user who passed primary auth.
 		 */
-		$should = (bool) apply_filters( 'dls_should_challenge', true, $user ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- 3-letter plugin prefix.
+		$should = (bool) apply_filters( 'dragonloginsecurity_should_challenge', true, $user );
 		if ( ! $should ) {
 			// A trusted device: let the login wp_signon already established stand.
-			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- 3-letter plugin prefix.
-			do_action( 'dls_login_event', '2fa.skipped', array( 'object_id' => $user->ID, 'object_name' => $user->user_login ) );
+
+			do_action(
+				'dragonloginsecurity_login_event',
+				'2fa.skipped',
+				array(
+					'object_id'   => $user->ID,
+					'object_name' => $user->user_login,
+				)
+			);
 			return;
 		}
 
@@ -196,9 +202,9 @@ class Two_Factor {
 		}
 
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- The single-use login token IS the CSRF/anti-bypass secret; verified below before any state change.
-		$token    = isset( $_POST['dls_token'] ) ? sanitize_text_field( wp_unslash( $_POST['dls_token'] ) ) : '';
-		$user_id  = isset( $_POST['dls_user'] ) ? absint( wp_unslash( $_POST['dls_user'] ) ) : 0;
-		$method   = isset( $_POST['dls_method'] ) ? sanitize_key( wp_unslash( $_POST['dls_method'] ) ) : '';
+		$token    = isset( $_POST['dragonloginsecurity_token'] ) ? sanitize_text_field( wp_unslash( $_POST['dragonloginsecurity_token'] ) ) : '';
+		$user_id  = isset( $_POST['dragonloginsecurity_user'] ) ? absint( wp_unslash( $_POST['dragonloginsecurity_user'] ) ) : 0;
+		$method   = isset( $_POST['dragonloginsecurity_method'] ) ? sanitize_key( wp_unslash( $_POST['dragonloginsecurity_method'] ) ) : '';
 		$redirect = isset( $_POST['redirect_to'] ) ? esc_url_raw( wp_unslash( $_POST['redirect_to'] ) ) : admin_url();
 		$remember = ! empty( $_POST['rememberme'] );
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
@@ -228,7 +234,7 @@ class Two_Factor {
 			 *
 			 * @param int $user_id The now fully-authenticated user.
 			 */
-			do_action( 'dls_2fa_passed', $user_id ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- 3-letter plugin prefix.
+			do_action( 'dragonloginsecurity_2fa_passed', $user_id );
 			$this->emit( '2fa.passed', $user );
 			wp_safe_redirect( $redirect );
 			exit;
@@ -236,8 +242,9 @@ class Two_Factor {
 
 		// Failure: feed the brute-force machinery (WordPress core's own hook) and
 		// re-challenge with a fresh token.
-		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Intentionally firing WordPress core's wp_login_failed.
-		do_action( 'wp_login_failed', $user->user_login, new \WP_Error( 'dls_2fa_failed', 'Invalid code.' ) );
+
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Intentionally firing WordPress core's own wp_login_failed action so brute-force protection (core and other plugins) counts the failed 2FA step.
+		do_action( 'wp_login_failed', $user->user_login, new \WP_Error( 'dragonloginsecurity_2fa_failed', 'Invalid code.' ) );
 		$this->emit( '2fa.failed', $user );
 		$this->render_challenge(
 			$user,
@@ -261,7 +268,7 @@ class Two_Factor {
 		switch ( $method ) {
 			case 'totp':
 				$secret = $this->totp_secret( $user_id );
-				$code   = isset( $_POST['dls_code'] ) ? sanitize_text_field( wp_unslash( $_POST['dls_code'] ) ) : '';
+				$code   = isset( $_POST['dragonloginsecurity_code'] ) ? sanitize_text_field( wp_unslash( $_POST['dragonloginsecurity_code'] ) ) : '';
 				if ( null === $secret ) {
 					return false;
 				}
@@ -278,18 +285,18 @@ class Two_Factor {
 				return true;
 
 			case 'backup':
-				$code = isset( $_POST['dls_code'] ) ? sanitize_text_field( wp_unslash( $_POST['dls_code'] ) ) : '';
+				$code = isset( $_POST['dragonloginsecurity_code'] ) ? sanitize_text_field( wp_unslash( $_POST['dragonloginsecurity_code'] ) ) : '';
 				return Provider_Backup_Codes::verify_and_consume( $user_id, $code );
 
 			case 'passkey':
 				return Provider_Passkey::validate(
 					$user_id,
 					array(
-						'token'         => isset( $_POST['dls_wa_token'] ) ? sanitize_text_field( wp_unslash( $_POST['dls_wa_token'] ) ) : '',
-						'credential_id' => isset( $_POST['dls_wa_id'] ) ? sanitize_text_field( wp_unslash( $_POST['dls_wa_id'] ) ) : '',
-						'client_data'   => isset( $_POST['dls_wa_client'] ) ? sanitize_text_field( wp_unslash( $_POST['dls_wa_client'] ) ) : '',
-						'auth_data'     => isset( $_POST['dls_wa_auth'] ) ? sanitize_text_field( wp_unslash( $_POST['dls_wa_auth'] ) ) : '',
-						'signature'     => isset( $_POST['dls_wa_sig'] ) ? sanitize_text_field( wp_unslash( $_POST['dls_wa_sig'] ) ) : '',
+						'token'         => isset( $_POST['dragonloginsecurity_wa_token'] ) ? sanitize_text_field( wp_unslash( $_POST['dragonloginsecurity_wa_token'] ) ) : '',
+						'credential_id' => isset( $_POST['dragonloginsecurity_wa_id'] ) ? sanitize_text_field( wp_unslash( $_POST['dragonloginsecurity_wa_id'] ) ) : '',
+						'client_data'   => isset( $_POST['dragonloginsecurity_wa_client'] ) ? sanitize_text_field( wp_unslash( $_POST['dragonloginsecurity_wa_client'] ) ) : '',
+						'auth_data'     => isset( $_POST['dragonloginsecurity_wa_auth'] ) ? sanitize_text_field( wp_unslash( $_POST['dragonloginsecurity_wa_auth'] ) ) : '',
+						'signature'     => isset( $_POST['dragonloginsecurity_wa_sig'] ) ? sanitize_text_field( wp_unslash( $_POST['dragonloginsecurity_wa_sig'] ) ) : '',
 					)
 				);
 		}
@@ -324,8 +331,8 @@ class Two_Factor {
 		);
 
 		// login_header()/login_footer() are defined by wp-login.php, which is the
-		// active script in both the wp_login and login_form_dls_2fa contexts.
-		require DLS_PLUGIN_DIR . 'admin/views/2fa-challenge.php';
+		// active script in both the wp_login and login_form_dragonloginsecurity_2fa contexts.
+		require DRAGONLOGINSECURITY_PLUGIN_DIR . 'admin/views/2fa-challenge.php';
 	}
 
 	/**
@@ -336,8 +343,7 @@ class Two_Factor {
 	 */
 	private function emit( string $code, \WP_User $user ): void {
 		do_action(
-			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- 3-letter plugin prefix.
-			'dls_login_event',
+			'dragonloginsecurity_login_event',
 			$code,
 			array(
 				'object_id'   => $user->ID,

@@ -3,7 +3,7 @@
  * Plugin Name: Dragon Login Security
  * Plugin URI: https://dragoncore.ltd/plugins/dragon-login-security
  * Description: Brute-force protection and modern two-factor authentication (authenticator apps, backup codes, and passkeys) for WordPress. Feeds Dragon Activity Log when installed.
- * Version: 1.0.1
+ * Version: 1.0.3
  * Requires at least: 6.2
  * Requires PHP: 8.0
  * Author: Dragon Core
@@ -23,63 +23,63 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- Namespaced constants; 3-letter prefix is the plugin standard.
-define( 'DLS_VERSION', '1.0.1' );
-define( 'DLS_PLUGIN_FILE', __FILE__ );
-define( 'DLS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
-define( 'DLS_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define( 'DLS_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
+define( 'DRAGONLOGINSECURITY_VERSION', '1.0.3' );
+define( 'DRAGONLOGINSECURITY_PLUGIN_FILE', __FILE__ );
+define( 'DRAGONLOGINSECURITY_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+define( 'DRAGONLOGINSECURITY_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+define( 'DRAGONLOGINSECURITY_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
 // phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound
 
 // Composer autoloader (vendored lbuchs/webauthn).
-if ( file_exists( DLS_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
-	require_once DLS_PLUGIN_DIR . 'vendor/autoload.php';
+if ( file_exists( DRAGONLOGINSECURITY_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
+	require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'vendor/autoload.php';
 }
 
-require_once DLS_PLUGIN_DIR . 'includes/class-crypto.php';
-require_once DLS_PLUGIN_DIR . 'includes/class-ip.php';
-require_once DLS_PLUGIN_DIR . 'includes/providers/class-provider-totp.php';
-require_once DLS_PLUGIN_DIR . 'includes/providers/class-provider-backup-codes.php';
-require_once DLS_PLUGIN_DIR . 'includes/class-credentials.php';
-require_once DLS_PLUGIN_DIR . 'includes/class-webauthn.php';
-require_once DLS_PLUGIN_DIR . 'includes/providers/class-provider-passkey.php';
-require_once DLS_PLUGIN_DIR . 'includes/class-limit-login.php';
-require_once DLS_PLUGIN_DIR . 'includes/class-login-token.php';
-require_once DLS_PLUGIN_DIR . 'includes/class-two-factor.php';
-require_once DLS_PLUGIN_DIR . 'includes/class-events.php';
-require_once DLS_PLUGIN_DIR . 'includes/class-integration.php';
+require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-crypto.php';
+require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-ip.php';
+require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/providers/class-provider-totp.php';
+require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/providers/class-provider-backup-codes.php';
+require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-credentials.php';
+require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-webauthn.php';
+require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/providers/class-provider-passkey.php';
+require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-limit-login.php';
+require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-login-token.php';
+require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-two-factor.php';
+require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-events.php';
+require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-integration.php';
 
 if ( is_admin() ) {
-	require_once DLS_PLUGIN_DIR . 'includes/class-ajax.php';
-	require_once DLS_PLUGIN_DIR . 'includes/class-user-profile.php';
-	require_once DLS_PLUGIN_DIR . 'includes/class-admin.php';
+	require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-ajax.php';
+	require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-user-profile.php';
+	require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-admin.php';
 }
 
-require_once DLS_PLUGIN_DIR . 'includes/class-plugin.php';
+require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-plugin.php';
 
 if ( defined( 'WP_CLI' ) && WP_CLI ) {
-	require_once DLS_PLUGIN_DIR . 'includes/class-cli.php';
+	require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-cli.php';
 }
 
 /**
  * Activation: create tables, seed options, schedule cron.
  */
-function dls_activate(): void {
+function dragonloginsecurity_activate(): void {
 	Plugin::get_instance()->activate();
 }
-register_activation_hook( __FILE__, __NAMESPACE__ . '\dls_activate' );
+register_activation_hook( __FILE__, __NAMESPACE__ . '\dragonloginsecurity_activate' );
 
 /**
  * Deactivation: clear scheduled cron.
  */
-function dls_deactivate(): void {
+function dragonloginsecurity_deactivate(): void {
 	Plugin::get_instance()->deactivate();
 }
-register_deactivation_hook( __FILE__, __NAMESPACE__ . '\dls_deactivate' );
+register_deactivation_hook( __FILE__, __NAMESPACE__ . '\dragonloginsecurity_deactivate' );
 
 /**
  * Boot the plugin.
  */
-function dls_init(): void {
+function dragonloginsecurity_init(): void {
 	Plugin::get_instance();
 }
-add_action( 'plugins_loaded', __NAMESPACE__ . '\dls_init' );
+add_action( 'plugins_loaded', __NAMESPACE__ . '\dragonloginsecurity_init' );

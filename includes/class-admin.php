@@ -22,7 +22,7 @@ class Admin {
 	public function hook(): void {
 		add_action( 'admin_menu', array( $this, 'menu' ) );
 		add_action( 'admin_init', array( $this, 'maybe_save' ) );
-		add_filter( 'plugin_action_links_' . DLS_PLUGIN_BASENAME, array( $this, 'action_links' ) );
+		add_filter( 'plugin_action_links_' . DRAGONLOGINSECURITY_PLUGIN_BASENAME, array( $this, 'action_links' ) );
 	}
 
 	/**
@@ -58,17 +58,17 @@ class Admin {
 	 * Save the settings form.
 	 */
 	public function maybe_save(): void {
-		if ( ! isset( $_POST['dls_save_settings'] ) || ! current_user_can( 'manage_options' ) ) {
+		if ( ! isset( $_POST['dragonloginsecurity_save_settings'] ) || ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		check_admin_referer( 'dls_settings' );
+		check_admin_referer( 'dragonloginsecurity_settings' );
 
 		$settings = array(
 			'trust_proxy' => isset( $_POST['trust_proxy'] ),
 			'allow_ips'   => $this->parse_ips( isset( $_POST['allow_ips'] ) ? wp_unslash( $_POST['allow_ips'] ) : '' ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Parsed + validated line-by-line in parse_ips().
 			'deny_ips'    => $this->parse_ips( isset( $_POST['deny_ips'] ) ? wp_unslash( $_POST['deny_ips'] ) : '' ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Parsed + validated line-by-line in parse_ips().
 		);
-		update_option( 'dls_settings', $settings, false );
+		update_option( 'dragonloginsecurity_settings', $settings, false );
 
 		add_settings_error( 'dls', 'saved', __( 'Settings saved.', 'dragon-login-security' ), 'updated' );
 		set_transient( 'settings_errors', get_settings_errors(), 30 );
@@ -100,8 +100,8 @@ class Admin {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		$dragonloginsecurity_settings = get_option( 'dls_settings', array() );
+		$dragonloginsecurity_settings = get_option( 'dragonloginsecurity_settings', array() );
 		$dragonloginsecurity_settings = is_array( $dragonloginsecurity_settings ) ? $dragonloginsecurity_settings : array();
-		require DLS_PLUGIN_DIR . 'admin/views/settings.php';
+		require DRAGONLOGINSECURITY_PLUGIN_DIR . 'admin/views/settings.php';
 	}
 }

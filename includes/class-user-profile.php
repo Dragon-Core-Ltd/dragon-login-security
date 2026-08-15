@@ -34,8 +34,8 @@ class User_Profile {
 		if ( ! in_array( $hook_suffix, array( 'profile.php', 'user-edit.php' ), true ) ) {
 			return;
 		}
-		wp_enqueue_style( 'dls-admin', DLS_PLUGIN_URL . 'admin/css/admin.css', array(), DLS_VERSION );
-		wp_enqueue_script( 'dls-enroll', DLS_PLUGIN_URL . 'admin/js/enroll.js', array( 'jquery' ), DLS_VERSION, true );
+		wp_enqueue_style( 'dls-admin', DRAGONLOGINSECURITY_PLUGIN_URL . 'admin/css/admin.css', array(), DRAGONLOGINSECURITY_VERSION );
+		wp_enqueue_script( 'dls-enroll', DRAGONLOGINSECURITY_PLUGIN_URL . 'admin/js/enroll.js', array( 'jquery' ), DRAGONLOGINSECURITY_VERSION, true );
 		wp_localize_script(
 			'dls-enroll',
 			'dlsEnroll',
@@ -65,6 +65,6 @@ class User_Profile {
 		$dragonloginsecurity_totp_on  = '' !== (string) get_user_meta( $user->ID, Two_Factor::TOTP_META, true );
 		$dragonloginsecurity_passkeys = Credentials::for_user( $user->ID );
 		$dragonloginsecurity_backup_n = Provider_Backup_Codes::remaining( $user->ID );
-		require DLS_PLUGIN_DIR . 'admin/views/profile-2fa.php';
+		require DRAGONLOGINSECURITY_PLUGIN_DIR . 'admin/views/profile-2fa.php';
 	}
 }

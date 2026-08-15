@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Forwards dls_login_event to Activity Log and registers our event codes.
+ * Forwards dragonloginsecurity_login_event to Activity Log and registers our event codes.
  */
 class Integration {
 
@@ -23,7 +23,7 @@ class Integration {
 	 * Register hooks.
 	 */
 	public function __construct() {
-		add_action( 'dls_login_event', array( $this, 'forward' ), 10, 2 );
+		add_action( 'dragonloginsecurity_login_event', array( $this, 'forward' ), 10, 2 );
 		add_filter( 'dal_register_event', array( $this, 'register' ) );
 	}
 

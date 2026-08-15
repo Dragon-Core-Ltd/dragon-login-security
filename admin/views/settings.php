@@ -28,7 +28,7 @@ $dragonloginsecurity_deny  = ! empty( $dragonloginsecurity_s['deny_ips'] ) ? imp
 	</p>
 
 	<form method="post">
-		<?php wp_nonce_field( 'dls_settings' ); ?>
+		<?php wp_nonce_field( 'dragonloginsecurity_settings' ); ?>
 		<table class="form-table" role="presentation">
 			<tr>
 				<th scope="row"><?php esc_html_e( 'Never lock out these IPs', 'dragon-login-security' ); ?></th>
@@ -55,6 +55,6 @@ $dragonloginsecurity_deny  = ! empty( $dragonloginsecurity_s['deny_ips'] ) ? imp
 				</td>
 			</tr>
 		</table>
-		<p><button type="submit" name="dls_save_settings" class="button button-primary"><?php esc_html_e( 'Save Settings', 'dragon-login-security' ); ?></button></p>
+		<p><button type="submit" name="dragonloginsecurity_save_settings" class="button button-primary"><?php esc_html_e( 'Save Settings', 'dragon-login-security' ); ?></button></p>
 	</form>
 </div>

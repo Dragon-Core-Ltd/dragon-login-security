@@ -21,10 +21,13 @@ function dragonloginsecurity_uninstall_site(): void {
 		$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $dragonloginsecurity_table ) );
 	}
 
-	foreach ( array( 'dls_db_version', 'dls_settings' ) as $dragonloginsecurity_option ) {
+	// Current names plus the pre-1.0.2 dls_ names, in case a 1.0.1 install was
+	// removed before its 1.0.2 migration ever ran.
+	foreach ( array( 'dragonloginsecurity_db_version', 'dragonloginsecurity_settings', 'dls_db_version', 'dls_settings' ) as $dragonloginsecurity_option ) {
 		delete_option( $dragonloginsecurity_option );
 	}
 
+	wp_clear_scheduled_hook( 'dragonloginsecurity_prune_lockouts' );
 	wp_clear_scheduled_hook( 'dls_prune_lockouts' );
 }
 
