@@ -23,6 +23,19 @@ class Admin {
 		add_action( 'admin_menu', array( $this, 'menu' ) );
 		add_action( 'admin_init', array( $this, 'maybe_save' ) );
 		add_filter( 'plugin_action_links_' . DRAGONLOGINSECURITY_PLUGIN_BASENAME, array( $this, 'action_links' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
+	}
+
+	/**
+	 * Enqueue the Dragon design system on the settings screen.
+	 *
+	 * @param string $hook_suffix Current admin page.
+	 */
+	public function enqueue( string $hook_suffix ): void {
+		if ( 'settings_page_dragon-login-security' !== $hook_suffix ) {
+			return;
+		}
+		wp_enqueue_style( 'dragon-login-security-dragon-ui', DRAGONLOGINSECURITY_PLUGIN_URL . 'admin/css/dragon-ui.css', array(), DRAGONLOGINSECURITY_VERSION );
 	}
 
 	/**

@@ -16,8 +16,8 @@ $dragonloginsecurity_s     = $dragonloginsecurity_settings;
 $dragonloginsecurity_allow = ! empty( $dragonloginsecurity_s['allow_ips'] ) ? implode( "\n", (array) $dragonloginsecurity_s['allow_ips'] ) : '';
 $dragonloginsecurity_deny  = ! empty( $dragonloginsecurity_s['deny_ips'] ) ? implode( "\n", (array) $dragonloginsecurity_s['deny_ips'] ) : '';
 ?>
-<div class="wrap">
-	<h1><?php esc_html_e( 'Dragon Login Security', 'dragon-login-security' ); ?></h1>
+<div class="wrap dragon-ui">
+	<h1 class="dragon-title"><span class="dragon-mark" aria-hidden="true"></span><?php esc_html_e( 'Dragon Login Security', 'dragon-login-security' ); ?></h1>
 
 	<?php if ( isset( $_GET['updated'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only notice flag. ?>
 		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Settings saved.', 'dragon-login-security' ); ?></p></div>

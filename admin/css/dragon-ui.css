@@ -1,0 +1,492 @@
+/**
+ * Dragon UI v1.0.0 — shared admin styles for Dragon Core plugins.
+ *
+ * Direction: "House Red" — the dragoncore.ltd brand (zinc neutrals, Inter-adjacent
+ * system type, JetBrains-mono data, brand red #dc2626) spoken as a wp-admin dialect.
+ * The red is rationed to three jobs: the roundel, the primary action, the active tab.
+ * Semantic state is always a TINTED pill (soft bg + dark text), never solid red, so
+ * brand and danger can share a hue without sharing a meaning.
+ *
+ * Usage: enqueue before the plugin's own admin.css and add the "dragon-ui" class to
+ * the top-level .wrap element. Everything is scoped under .dragon-ui — nothing leaks.
+ * Data-heavy screens add "dragon-ui--dense" to the wrap for tighter tables.
+ *
+ * This file is copied into each plugin (like the shared license module). The master
+ * lives at wp-plugins/dragon-ui/dragon-ui.css — edit there, then re-copy.
+ */
+
+.dragon-ui {
+	--dragon-accent: #dc2626;
+	--dragon-accent-dark: #b91c1c;
+	--dragon-accent-soft: #fef2f2;
+	--dragon-ink: #18181b;
+	--dragon-ink-2: #52525b;
+	--dragon-ink-3: #8c8f94;
+	--dragon-line: #d9d9de;
+	--dragon-line-soft: #efeff1;
+	--dragon-panel: #fff;
+	--dragon-head: #fafafa;
+	--dragon-radius: 6px;
+	--dragon-shadow: 0 1px 2px rgba(24, 24, 27, 0.06);
+	--dragon-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* ————— Page header: roundel + title ————— */
+.dragon-ui {
+	padding-top: 10px;
+}
+
+.dragon-ui h1.dragon-title {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-weight: 600;
+	color: var(--dragon-ink);
+	padding: 0;
+	margin: 6px 0 4px;
+}
+
+.dragon-mark {
+	width: 26px;
+	height: 26px;
+	flex: none;
+	border-radius: 50%;
+	background: url("data:image/png;base64,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") center / cover no-repeat;
+	box-shadow: 0 0 0 1px rgba(24, 24, 27, 0.08);
+}
+
+.dragon-sub {
+	color: var(--dragon-ink-2);
+	margin: 2px 0 0;
+}
+
+/* ————— Tabs: boxes become an underline ————— */
+.dragon-ui .nav-tab-wrapper {
+	border-bottom: 1px solid var(--dragon-line);
+	padding-bottom: 0;
+	margin-top: 14px;
+	margin-bottom: 18px;
+}
+
+.dragon-ui .nav-tab {
+	background: transparent;
+	border: 0;
+	border-bottom: 2px solid transparent;
+	margin: 0 4px -1px 0;
+	padding: 8px 14px;
+	font-size: 13px;
+	color: var(--dragon-ink-2);
+}
+
+.dragon-ui .nav-tab:hover,
+.dragon-ui .nav-tab:focus {
+	background: transparent;
+	color: var(--dragon-ink);
+}
+
+.dragon-ui .nav-tab-active,
+.dragon-ui .nav-tab-active:hover {
+	color: var(--dragon-ink);
+	font-weight: 600;
+	border-bottom-color: var(--dragon-accent);
+}
+
+/* ————— Buttons: primary goes house red, secondary goes zinc ————— */
+.dragon-ui .button-primary {
+	background: var(--dragon-accent);
+	border-color: var(--dragon-accent);
+	color: #fff;
+	border-radius: 5px;
+	text-shadow: none;
+	box-shadow: none;
+}
+
+.dragon-ui .button-primary:hover,
+.dragon-ui .button-primary:focus {
+	background: var(--dragon-accent-dark);
+	border-color: var(--dragon-accent-dark);
+	color: #fff;
+}
+
+.dragon-ui .button-primary:focus,
+.dragon-ui .button:focus {
+	box-shadow: 0 0 0 1px #fff, 0 0 0 3px var(--dragon-accent);
+	outline: none;
+}
+
+.dragon-ui .button:not(.button-primary):not(.button-link) {
+	color: #3f3f46;
+	border-color: #c8c8cd;
+	border-radius: 5px;
+	background: #fff;
+}
+
+.dragon-ui .button:not(.button-primary):not(.button-link):hover {
+	color: var(--dragon-ink);
+	border-color: #a1a1aa;
+	background: #fafafa;
+}
+
+/* ————— Filter row (.subsubsub): quiet segmented pills; tabs own the red ————— */
+.dragon-ui .subsubsub {
+	margin: 2px 0 10px;
+}
+
+.dragon-ui .subsubsub a {
+	color: var(--dragon-ink-2);
+	display: inline-block;
+	padding: 4px 12px;
+	border-radius: 999px;
+}
+
+.dragon-ui .subsubsub a:hover {
+	color: var(--dragon-ink);
+	background: rgba(255, 255, 255, 0.7);
+}
+
+.dragon-ui .subsubsub a.current {
+	color: var(--dragon-ink);
+	font-weight: 600;
+	background: #fff;
+	box-shadow: var(--dragon-shadow);
+	border: 1px solid var(--dragon-line);
+	padding: 3px 11px;
+}
+
+.dragon-ui .subsubsub .count {
+	color: var(--dragon-ink-3);
+}
+
+/* ————— Tables: WP list tables and .dragon-table both ————— */
+.dragon-ui .wp-list-table,
+.dragon-ui .dragon-table {
+	border: 1px solid var(--dragon-line);
+	border-radius: var(--dragon-radius);
+	border-collapse: separate;
+	border-spacing: 0;
+	box-shadow: var(--dragon-shadow);
+	overflow: hidden;
+}
+
+.dragon-ui .wp-list-table thead th,
+.dragon-ui .wp-list-table thead td,
+.dragon-ui .dragon-table thead th {
+	background: var(--dragon-head);
+	color: var(--dragon-ink-2);
+	font-weight: 600;
+	border-bottom: 1px solid var(--dragon-line-soft);
+}
+
+.dragon-ui .wp-list-table tfoot {
+	display: none;
+}
+
+.dragon-ui .wp-list-table tbody td,
+.dragon-ui .wp-list-table tbody th,
+.dragon-ui .dragon-table tbody td {
+	border-bottom: 1px solid var(--dragon-line-soft);
+}
+
+.dragon-ui .wp-list-table tbody tr:last-child td,
+.dragon-ui .wp-list-table tbody tr:last-child th,
+.dragon-ui .dragon-table tbody tr:last-child td {
+	border-bottom: 0;
+}
+
+/* striping off; hover on */
+.dragon-ui .striped > tbody > :nth-child(odd),
+.dragon-ui .wp-list-table.striped > tbody > :nth-child(odd) {
+	background: transparent;
+}
+
+.dragon-ui .wp-list-table tbody tr:hover,
+.dragon-ui .dragon-table tbody tr:hover {
+	background: #fafafa;
+}
+
+/* rows: settled padding; hover actions reserve less dead height */
+.dragon-ui .wp-list-table tbody td,
+.dragon-ui .wp-list-table tbody th.check-column {
+	padding-top: 11px;
+	padding-bottom: 11px;
+}
+
+.dragon-ui .row-actions {
+	font-size: 12px;
+	padding-top: 3px;
+	position: static;
+	left: auto;
+	visibility: visible;
+	color: transparent;
+}
+
+/* data columns read as data */
+.dragon-ui .wp-list-table td.column-url,
+.dragon-ui .wp-list-table td.column-source,
+.dragon-ui .wp-list-table td.column-target,
+.dragon-ui .dragon-table td.column-url,
+.dragon-ui .dragon-table td.column-source,
+.dragon-ui .dragon-table td.column-target,
+.dragon-ui .dragon-mono {
+	font-family: var(--dragon-mono);
+	font-size: 12px;
+}
+
+/* ————— Dense modifier: for log-heavy screens ————— */
+.dragon-ui--dense .wp-list-table th,
+.dragon-ui--dense .wp-list-table td,
+.dragon-ui--dense .dragon-table th,
+.dragon-ui--dense .dragon-table td {
+	padding-top: 7px;
+	padding-bottom: 7px;
+	font-size: 12px;
+}
+
+.dragon-ui--dense .wp-list-table thead th,
+.dragon-ui--dense .dragon-table thead th {
+	font-size: 10.5px;
+	text-transform: uppercase;
+	letter-spacing: 0.07em;
+}
+
+/* severity stripes (first cell) */
+.dragon-ui tr.dragon-sev--broken > :first-child,
+.dragon-ui #the-list tr.dragon-sev--broken > :first-child {
+	box-shadow: inset 4px 0 0 var(--dragon-accent);
+}
+
+.dragon-ui tr.dragon-sev--warning > :first-child,
+.dragon-ui #the-list tr.dragon-sev--warning > :first-child {
+	box-shadow: inset 4px 0 0 #b45309;
+}
+
+.dragon-ui tr.dragon-sev--ok > :first-child,
+.dragon-ui #the-list tr.dragon-sev--ok > :first-child {
+	box-shadow: inset 4px 0 0 #16a34a;
+}
+
+/* ————— Status pills: tinted semantics, never solid ————— */
+.dragon-pill {
+	display: inline-block;
+	padding: 2px 9px;
+	border-radius: 999px;
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 1.6;
+	white-space: nowrap;
+}
+
+.dragon-pill--broken {
+	background: #fde8e8;
+	color: #9f1c1c;
+}
+
+.dragon-pill--warning {
+	background: #fdf3d7;
+	color: #8a6100;
+}
+
+.dragon-pill--ok {
+	background: #dcf5e4;
+	color: #166534;
+}
+
+.dragon-pill--suspected {
+	background: #ececee;
+	color: #3f3f46;
+}
+
+.dragon-pill--info {
+	background: #e3effb;
+	color: #1d4ed8;
+}
+
+.dragon-pill--muted {
+	background: #f0f0f1;
+	color: #646970;
+	font-weight: 500;
+}
+
+.dragon-pill--code {
+	background: #f0f0f1;
+	color: #646970;
+	font-weight: 500;
+	font-family: var(--dragon-mono);
+	font-size: 10.5px;
+	border-radius: 4px;
+}
+
+/* ————— Cards, empty states, findings ————— */
+.dragon-card {
+	background: var(--dragon-panel);
+	border: 1px solid var(--dragon-line);
+	border-radius: var(--dragon-radius);
+	box-shadow: var(--dragon-shadow);
+	padding: 16px;
+}
+
+.dragon-empty {
+	background: var(--dragon-panel);
+	border: 1px solid var(--dragon-line);
+	border-radius: var(--dragon-radius);
+	box-shadow: var(--dragon-shadow);
+	text-align: center;
+	padding: 36px 24px;
+	margin: 12px 0;
+}
+
+.dragon-empty__art {
+	font-size: 24px;
+	color: var(--dragon-accent);
+	margin-bottom: 6px;
+}
+
+.dragon-empty p {
+	color: var(--dragon-ink-2);
+	margin: 0 0 14px;
+}
+
+.dragon-finding {
+	border-left: 4px solid var(--dragon-line);
+	border-radius: 4px;
+	background: #fafafa;
+	padding: 10px 14px;
+	margin: 10px 0;
+}
+
+.dragon-finding--critical {
+	border-left-color: var(--dragon-accent);
+	background: var(--dragon-accent-soft);
+}
+
+.dragon-finding--warning {
+	border-left-color: #d97706;
+	background: #fffbeb;
+}
+
+.dragon-finding--ok {
+	border-left-color: #16a34a;
+	background: #f0fdf4;
+}
+
+.dragon-finding > strong {
+	font-size: 13px;
+	color: var(--dragon-ink);
+}
+
+.dragon-finding p {
+	font-size: 12px;
+	color: var(--dragon-ink-2);
+	margin: 3px 0 0;
+}
+
+/* ————— Family footer ————— */
+.dragon-family-note {
+	color: var(--dragon-ink-3);
+	font-size: 12px;
+	margin-top: 24px;
+}
+
+.dragon-family-note a {
+	color: var(--dragon-ink-2);
+}
+
+/* ————— Forms: keep native, tune the ink ————— */
+.dragon-ui .form-table th {
+	color: var(--dragon-ink);
+}
+
+.dragon-ui .form-table .description {
+	color: var(--dragon-ink-3);
+}
+
+.dragon-ui input[type="search"],
+.dragon-ui input[type="text"],
+.dragon-ui input[type="number"],
+.dragon-ui input[type="password"],
+.dragon-ui select,
+.dragon-ui textarea {
+	border-color: #c8c8cd;
+	border-radius: 5px;
+}
+
+.dragon-ui input:focus,
+.dragon-ui select:focus,
+.dragon-ui textarea:focus {
+	border-color: var(--dragon-accent);
+	box-shadow: 0 0 0 1px var(--dragon-accent);
+}
+
+/* ————— Page title action: the screen's one primary ————— */
+.dragon-ui .page-title-action {
+	background: var(--dragon-accent);
+	border: 1px solid var(--dragon-accent-dark);
+	color: #fff;
+	border-radius: 5px;
+	text-shadow: none;
+}
+
+.dragon-ui .page-title-action:hover,
+.dragon-ui .page-title-action:focus {
+	background: var(--dragon-accent-dark);
+	border-color: var(--dragon-accent-dark);
+	color: #fff;
+}
+
+/* ————— Links inside tables read as controls, not hypertext ————— */
+.dragon-ui .wp-list-table tbody a,
+.dragon-ui .dragon-table tbody a {
+	color: #3f3f46;
+	text-decoration: underline;
+	text-decoration-color: #d4d4d8;
+	text-underline-offset: 2px;
+}
+
+.dragon-ui .wp-list-table tbody a:hover,
+.dragon-ui .dragon-table tbody a:hover {
+	color: var(--dragon-ink);
+	text-decoration-color: var(--dragon-ink-2);
+}
+
+/* ————— Toolbar: one row — action · status · filters · search ————— */
+.dragon-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	flex-wrap: wrap;
+	margin: 0 0 14px;
+}
+
+.dragon-toolbar .subsubsub {
+	float: none;
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	margin: 0 0 0 auto;
+	white-space: nowrap;
+}
+
+.dragon-toolbar .subsubsub li {
+	margin: 0;
+}
+
+.dragon-toolbar .search-box {
+	float: none;
+	display: flex;
+	gap: 6px;
+	margin: 0;
+}
+
+.dragon-toolbar .search-box input[type="search"] {
+	margin: 0;
+}
+
+/* table nav (bulk actions · count) tucks against the table */
+.dragon-ui .tablenav.top {
+	margin: 0 0 8px;
+	height: auto;
+}
+
+.dragon-ui .tablenav.bottom {
+	display: none;
+}
