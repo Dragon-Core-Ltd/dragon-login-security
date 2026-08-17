@@ -3,7 +3,7 @@
  * Plugin Name: Dragon Login Security
  * Plugin URI: https://dragoncore.ltd/plugins/dragon-login-security
  * Description: Brute-force protection and modern two-factor authentication (authenticator apps, backup codes, and passkeys) for WordPress. Feeds Dragon Activity Log when installed.
- * Version: 1.0.4
+ * Version: 1.0.5
  * Requires at least: 6.2
  * Requires PHP: 8.0
  * Author: Dragon Core
@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- Namespaced constants; 3-letter prefix is the plugin standard.
-define( 'DRAGONLOGINSECURITY_VERSION', '1.0.4' );
+define( 'DRAGONLOGINSECURITY_VERSION', '1.0.5' );
 define( 'DRAGONLOGINSECURITY_PLUGIN_FILE', __FILE__ );
 define( 'DRAGONLOGINSECURITY_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DRAGONLOGINSECURITY_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -43,6 +43,8 @@ require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-credentials.php';
 require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-webauthn.php';
 require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/providers/class-provider-passkey.php';
 require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-limit-login.php';
+require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-privacy.php';
+require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-importer.php';
 require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-login-token.php';
 require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-two-factor.php';
 require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-events.php';

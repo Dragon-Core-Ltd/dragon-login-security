@@ -54,7 +54,41 @@ $dragonloginsecurity_deny  = ! empty( $dragonloginsecurity_s['deny_ips'] ) ? imp
 					<p class="description"><?php esc_html_e( 'Only enable this if your site is behind a trusted reverse proxy or load balancer. Otherwise attackers can spoof their IP.', 'dragon-login-security' ); ?></p>
 				</td>
 			</tr>
+					<tr>
+				<th scope="row"><?php esc_html_e( 'Delete all data on uninstall', 'dragon-login-security' ); ?></th>
+				<td>
+					<label>
+						<input type="checkbox" name="dragonloginsecurity_delete_data" value="1" <?php checked( (bool) get_option( 'dragonloginsecurity_delete_data_on_uninstall' ) ); ?>>
+						<?php esc_html_e( 'When the plugin is deleted, remove lockout history, passkeys, 2FA enrolments and settings. Leave off to keep them for a future reinstall.', 'dragon-login-security' ); ?>
+					</label>
+				</td>
+			</tr>
 		</table>
 		<p><button type="submit" name="dragonloginsecurity_save_settings" class="button button-primary"><?php esc_html_e( 'Save Settings', 'dragon-login-security' ); ?></button></p>
 	</form>
+	<?php $dragonloginsecurity_import_notice = get_transient( 'dragonloginsecurity_import_notice' ); ?>
+	<?php if ( $dragonloginsecurity_import_notice ) : ?>
+		<?php delete_transient( 'dragonloginsecurity_import_notice' ); ?>
+		<div class="notice notice-success is-dismissible"><p><?php echo esc_html( $dragonloginsecurity_import_notice ); ?></p></div>
+	<?php endif; ?>
+	<?php $dragonloginsecurity_sources = \DragonLoginSecurity\Importer::detect(); ?>
+	<?php if ( ! empty( $dragonloginsecurity_sources ) ) : ?>
+		<div class="dragon-card" style="margin-top:16px;max-width:640px;">
+			<h2 style="margin-top:0;"><?php esc_html_e( 'Import from another plugin', 'dragon-login-security' ); ?></h2>
+			<p class="description"><?php esc_html_e( 'Carry your allow and deny IP lists over in one click. Nothing is removed from the other plugin.', 'dragon-login-security' ); ?></p>
+			<?php foreach ( $dragonloginsecurity_sources as $dragonloginsecurity_src => $dragonloginsecurity_src_label ) : ?>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;margin-right:8px;">
+					<?php wp_nonce_field( 'dragonloginsecurity_import' ); ?>
+					<input type="hidden" name="action" value="dragonloginsecurity_import">
+					<input type="hidden" name="source" value="<?php echo esc_attr( $dragonloginsecurity_src ); ?>">
+					<button type="submit" class="button">
+						<?php
+						/* translators: %s: source plugin name */
+						printf( esc_html__( 'Import from %s', 'dragon-login-security' ), esc_html( $dragonloginsecurity_src_label ) );
+						?>
+					</button>
+				</form>
+			<?php endforeach; ?>
+		</div>
+	<?php endif; ?>
 </div>

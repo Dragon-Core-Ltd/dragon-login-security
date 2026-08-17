@@ -82,6 +82,7 @@ class Admin {
 			'deny_ips'    => $this->parse_ips( isset( $_POST['deny_ips'] ) ? wp_unslash( $_POST['deny_ips'] ) : '' ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Parsed + validated line-by-line in parse_ips().
 		);
 		update_option( 'dragonloginsecurity_settings', $settings, false );
+		update_option( 'dragonloginsecurity_delete_data_on_uninstall', isset( $_POST['dragonloginsecurity_delete_data'] ) );
 
 		add_settings_error( 'dls', 'saved', __( 'Settings saved.', 'dragon-login-security' ), 'updated' );
 		set_transient( 'settings_errors', get_settings_errors(), 30 );

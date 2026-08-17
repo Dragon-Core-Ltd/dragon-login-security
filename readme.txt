@@ -4,7 +4,7 @@ Tags: two factor, 2fa, passkeys, login security, brute force
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.0.4
+Stable tag: 1.0.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,11 @@ No. Renaming wp-login.php breaks REST and other login paths and offers little re
 Yes — when Activity Log is active, login and two-factor events are recorded in its tamper-evident audit. Dragon Login Security works fully without it.
 
 == Changelog ==
+
+= 1.0.5 =
+* Data safety: uninstalling the plugin no longer deletes its data unless you explicitly opt in first — a reinstall now picks up exactly where you left off. (New setting.)
+* New: one-click import of allow/deny IP lists from Limit Login Attempts (Reloaded) and Wordfence.
+* Privacy: integrates WordPress's privacy tools — personal-data export shows a user's enrolment facts (never secrets) and erasure removes their second-factor material and lockout history; suggested privacy-policy text included.
 
 = 1.0.4 =
 * New look: the Dragon design system arrives — a consistent Dragon Core header, cleaner tables, and unified status colours. Purely visual; no behaviour changes.

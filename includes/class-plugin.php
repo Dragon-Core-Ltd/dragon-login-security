@@ -51,6 +51,8 @@ final class Plugin {
 		( new Limit_Login() )->hook();
 		( new Two_Factor() )->hook();
 		new Integration();
+		( new Privacy() )->init_hooks();
+		( new Importer() )->init_hooks();
 
 		if ( is_admin() ) {
 			( new Ajax() )->hook();
