@@ -23,7 +23,7 @@ wp dragon-login-security disable-2fa <username>
 ```
 
 ## Importing from another plugin
-If Limit Login Attempts (Reloaded) or Wordfence is (or was) installed, **Settings → Import** carries your allow/deny IP lists across in one click. Only valid single IP addresses are imported; ranges are skipped and reported.
+If Limit Login Attempts (Reloaded) or Wordfence is (or was) installed, **Settings → Login Security (import cards at the bottom of the settings tab)** carries your allow/deny IP lists across in one click. Only valid single IP addresses are imported; ranges are skipped and reported.
 
 ## Data & privacy
 Stored in your own database: authenticator secrets (encrypted), backup codes (hashed), passkey public keys with device labels, and the IP + username of failed logins (pruned on a retention schedule). The plugin integrates WordPress's privacy tools: personal-data **export** shows a user's enrolment facts (never secrets) and **erasure** removes their second-factor material and lockout history. **Uninstalling keeps your data by default**; opt into deletion in Settings.
@@ -33,3 +33,6 @@ Renaming wp-login.php breaks REST and app passwords while adding little real pro
 
 ## Dragon Login Security Pro
 Adds role-based 2FA enforcement (grace periods, block-until-enrolled), trusted devices, risk-based re-challenge with alerts, a compliance report with CSV export, and WooCommerce customer 2FA.
+
+## Uninstall
+Deleting the plugin keeps all its data by default, so a reinstall picks up where you left off. To remove everything on uninstall, tick **Delete all data on uninstall** in the plugin's settings first (this sets the `dragonloginsecurity_delete_data_on_uninstall` option).
