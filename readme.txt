@@ -4,7 +4,7 @@ Tags: two factor, 2fa, passkeys, login security, brute force
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.0.5
+Stable tag: 1.0.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,10 @@ No. Renaming wp-login.php breaks REST and other login paths and offers little re
 Yes — when Activity Log is active, login and two-factor events are recorded in its tamper-evident audit. Dragon Login Security works fully without it.
 
 == Changelog ==
+
+= 1.0.6 =
+* Safety: disabling your authenticator app and regenerating backup codes now ask for confirmation and explain the consequence.
+* Polish: passkey list shows an empty state.
 
 = 1.0.5 =
 * Data safety: uninstalling the plugin no longer deletes its data unless you explicitly opt in first — a reinstall now picks up exactly where you left off. (New setting.)

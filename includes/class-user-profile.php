@@ -43,9 +43,11 @@ class User_Profile {
 				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 				'nonce'   => wp_create_nonce( 'dls_ajax' ),
 				'i18n'    => array(
-					'confirmRemove' => __( 'Remove this passkey?', 'dragon-login-security' ),
-					'passkeyError'  => __( 'Could not add passkey.', 'dragon-login-security' ),
-					'saveCodes'     => __( 'Save these codes now — each works once and they will not be shown again.', 'dragon-login-security' ),
+					'confirmRemove'  => __( 'Remove this passkey?', 'dragon-login-security' ),
+					'confirmDisable' => __( 'Turn off your authenticator app? Your account will no longer ask for a code at sign-in.', 'dragon-login-security' ),
+					'confirmRegen'   => __( 'Generate new backup codes? Your existing codes stop working immediately.', 'dragon-login-security' ),
+					'passkeyError'   => __( 'Could not add passkey.', 'dragon-login-security' ),
+					'saveCodes'      => __( 'Save these codes now — each works once and they will not be shown again.', 'dragon-login-security' ),
 				),
 			)
 		);

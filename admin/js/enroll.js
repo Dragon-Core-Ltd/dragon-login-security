@@ -72,12 +72,14 @@
 		} );
 	} );
 	$root.on( 'click', '.dls-totp-disable', function () {
+		if ( ! window.confirm( dlsEnroll.i18n.confirmDisable ) ) { return; }
 		post( 'dragonloginsecurity_totp_disable' ).done( function () { window.location.reload(); } );
 	} );
 
 	// --- Backup codes ---
 	var lastCodes = [];
 	$( '#dls-backup-generate' ).on( 'click', function () {
+		if ( $( this ).attr( 'data-has-codes' ) && ! window.confirm( dlsEnroll.i18n.confirmRegen ) ) { return; }
 		post( 'dragonloginsecurity_backup_generate' ).done( function ( res ) {
 			if ( ! res.success ) { return; }
 			lastCodes = res.data.codes;

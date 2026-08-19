@@ -18,7 +18,7 @@ Security property worth knowing: **no auth cookie is issued until the second fac
 
 ## Locked out?
 Use a backup code on the two-factor screen. If none remain, an administrator can run the escape hatch on the server:
-```
+```bash
 wp dragon-login-security disable-2fa <username>
 ```
 

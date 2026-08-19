@@ -21,6 +21,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 		<th scope="row"><?php esc_html_e( 'Passkeys', 'dragon-login-security' ); ?></th>
 		<td>
 			<ul id="dls-passkey-list">
+				<?php if ( empty( $dragonloginsecurity_passkeys ) ) : ?>
+					<li class="dls-muted"><?php esc_html_e( 'No passkeys yet.', 'dragon-login-security' ); ?></li>
+				<?php endif; ?>
 				<?php foreach ( $dragonloginsecurity_passkeys as $dragonloginsecurity_pk ) : ?>
 					<li data-id="<?php echo esc_attr( (string) $dragonloginsecurity_pk['id'] ); ?>">
 						<?php echo esc_html( $dragonloginsecurity_pk['label'] ); ?>
@@ -70,7 +73,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 				?>
 			</p>
 			<?php if ( $dragonloginsecurity_is_self ) : ?>
-			<button type="button" class="button" id="dls-backup-generate"><?php esc_html_e( 'Generate new backup codes', 'dragon-login-security' ); ?></button>
+			<button type="button" class="button" id="dls-backup-generate" data-has-codes="<?php echo esc_attr( $dragonloginsecurity_backup_n > 0 ? '1' : '' ); ?>"><?php esc_html_e( 'Generate new backup codes', 'dragon-login-security' ); ?></button>
 			<?php endif; ?>
 			<div id="dls-backup-panel" style="display:none;margin-top:10px;">
 				<pre id="dls-backup-codes" style="background:#f6f7f7;padding:12px;border-radius:4px;"></pre>
