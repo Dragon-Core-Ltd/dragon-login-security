@@ -325,6 +325,17 @@
 	padding: 16px;
 }
 
+/* First-run / onboarding callout: a .dragon-card with a brand-red left rule. */
+.dragon-card.dragon-firstrun {
+	max-width: 640px;
+	margin: 12px 0 16px;
+	border-left: 3px solid var(--dragon-accent);
+}
+
+.dragon-firstrun h2 {
+	margin-top: 0;
+}
+
 .dragon-empty {
 	background: var(--dragon-panel);
 	border: 1px solid var(--dragon-line);

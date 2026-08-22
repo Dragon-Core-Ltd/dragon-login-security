@@ -1,10 +1,10 @@
 === Dragon Login Security ===
-Contributors: dragoncore
+Contributors: dragoncoreltd
 Tags: two factor, 2fa, passkeys, login security, brute force
 Requires at least: 6.2
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.0.6
+Stable tag: 1.0.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,10 @@ No. Renaming wp-login.php breaks REST and other login paths and offers little re
 Yes — when Activity Log is active, login and two-factor events are recorded in its tamper-evident audit. Dragon Login Security works fully without it.
 
 == Changelog ==
+
+= 1.0.7 =
+* Compatibility: tested up to WordPress 7.1.
+* Housekeeping: corrected the contributor name in the plugin readme.
 
 = 1.0.6 =
 * Safety: disabling your authenticator app and regenerating backup codes now ask for confirmation and explain the consequence.
