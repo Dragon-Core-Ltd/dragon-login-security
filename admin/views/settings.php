@@ -52,6 +52,12 @@ $dragonloginsecurity_deny  = ! empty( $dragonloginsecurity_s['deny_ips'] ) ? imp
 						<?php esc_html_e( 'Trust X-Forwarded-For for the client IP', 'dragon-login-security' ); ?>
 					</label>
 					<p class="description"><?php esc_html_e( 'Only enable this if your site is behind a trusted reverse proxy or load balancer. Otherwise attackers can spoof their IP.', 'dragon-login-security' ); ?></p>
+
+					<p style="margin-top:10px;">
+						<label for="dls-trusted-proxies"><strong><?php esc_html_e( 'Trusted proxy IPs / ranges (optional)', 'dragon-login-security' ); ?></strong></label>
+					</p>
+					<textarea id="dls-trusted-proxies" name="trusted_proxies" rows="3" class="large-text code" placeholder="173.245.48.0/20&#10;103.21.244.0/22"><?php echo esc_textarea( implode( "\n", (array) ( $dragonloginsecurity_s['trusted_proxies'] ?? array() ) ) ); ?></textarea>
+					<p class="description"><?php esc_html_e( 'One IP or CIDR range per line — your proxy / CDN addresses. When set, the client IP is the first X-Forwarded-For address that is not one of these. Leave empty if a single proxy sits in front (the rightmost forwarded address is used).', 'dragon-login-security' ); ?></p>
 				</td>
 			</tr>
 					<tr>

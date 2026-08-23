@@ -77,9 +77,10 @@ class Admin {
 		check_admin_referer( 'dragonloginsecurity_settings' );
 
 		$settings = array(
-			'trust_proxy' => isset( $_POST['trust_proxy'] ),
-			'allow_ips'   => $this->parse_ips( isset( $_POST['allow_ips'] ) ? wp_unslash( $_POST['allow_ips'] ) : '' ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Parsed + validated line-by-line in parse_ips().
-			'deny_ips'    => $this->parse_ips( isset( $_POST['deny_ips'] ) ? wp_unslash( $_POST['deny_ips'] ) : '' ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Parsed + validated line-by-line in parse_ips().
+			'trust_proxy'     => isset( $_POST['trust_proxy'] ),
+			'trusted_proxies' => $this->parse_proxies( isset( $_POST['trusted_proxies'] ) ? wp_unslash( $_POST['trusted_proxies'] ) : '' ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Parsed + validated line-by-line in parse_proxies().
+			'allow_ips'       => $this->parse_ips( isset( $_POST['allow_ips'] ) ? wp_unslash( $_POST['allow_ips'] ) : '' ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Parsed + validated line-by-line in parse_ips().
+			'deny_ips'        => $this->parse_ips( isset( $_POST['deny_ips'] ) ? wp_unslash( $_POST['deny_ips'] ) : '' ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Parsed + validated line-by-line in parse_ips().
 		);
 		update_option( 'dragonloginsecurity_settings', $settings, false );
 		update_option( 'dragonloginsecurity_delete_data_on_uninstall', isset( $_POST['dragonloginsecurity_delete_data'] ) );
@@ -102,6 +103,44 @@ class Admin {
 			$ip = trim( sanitize_text_field( $line ) );
 			if ( '' !== $ip && filter_var( $ip, FILTER_VALIDATE_IP ) ) {
 				$out[] = $ip;
+			}
+		}
+		return array_values( array_unique( $out ) );
+	}
+
+	/**
+	 * Parse a textarea of trusted proxy addresses (bare IP or CIDR) into a
+	 * validated list.
+	 *
+	 * @param string $raw Textarea contents.
+	 * @return string[]
+	 */
+	private function parse_proxies( $raw ): array {
+		$out = array();
+		foreach ( preg_split( '/[\r\n]+/', (string) $raw ) as $line ) {
+			$entry = trim( sanitize_text_field( $line ) );
+			if ( '' === $entry ) {
+				continue;
+			}
+
+			if ( false !== strpos( $entry, '/' ) ) {
+				list( $subnet, $bits ) = explode( '/', $entry, 2 );
+				if ( ! ctype_digit( $bits ) ) {
+					continue;
+				}
+				$bits = (int) $bits;
+				if ( filter_var( $subnet, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) ) {
+					$max = 32;
+				} elseif ( filter_var( $subnet, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) ) {
+					$max = 128;
+				} else {
+					continue;
+				}
+				if ( $bits >= 0 && $bits <= $max ) {
+					$out[] = $subnet . '/' . $bits;
+				}
+			} elseif ( filter_var( $entry, FILTER_VALIDATE_IP ) ) {
+				$out[] = $entry;
 			}
 		}
 		return array_values( array_unique( $out ) );
