@@ -6,7 +6,9 @@ Brute-force protection and modern two-factor authentication — passkeys, authen
 WordPress 6.2+, PHP 8.0+. Passkeys require HTTPS (any modern device with a screen lock can create one).
 
 ## Brute-force protection
-On automatically. Failed logins trigger escalating lockouts per IP; allow/deny lists live under **Settings → Login Security**. Proxy-header trust is **off by default** — only enable *Trust proxy headers* if your host genuinely terminates connections at a proxy, otherwise attackers could spoof their IP.
+On automatically. Failed logins trigger escalating lockouts per IP; allow/deny lists live under **Settings → Login Security**.
+
+**Getting the client IP right behind a proxy or CDN.** Proxy-header trust is **off by default** — the plugin uses the direct connection address (`REMOTE_ADDR`), which a visitor can't forge. Only enable **Trust X-Forwarded-For for the client IP** if your site genuinely sits behind a reverse proxy, load balancer or CDN (Cloudflare, a managed host's edge, and the like); otherwise an attacker can spoof the header to dodge a lockout or lock out someone else. When you turn it on, also fill in **Trusted proxy IPs / ranges** — your proxy/CDN addresses, one IP or CIDR per line. The real client is then taken as the first `X-Forwarded-For` entry that is *not* one of yours, walking the chain from the right so a forged prefix can't win. Leave it empty only if a single proxy sits in front of the site, in which case the right-most forwarded address is used.
 
 ## Two-factor authentication
 Each user enrols from **Users → Profile → Login Security**:
