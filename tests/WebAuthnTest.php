@@ -14,6 +14,11 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass( WebAuthn::class )]
 class WebAuthnTest extends TestCase {
 
+	public function test_available_reflects_loaded_library(): void {
+		$this->assertTrue( WebAuthn::available() );
+		$this->assertSame( class_exists( \lbuchs\WebAuthn\WebAuthn::class ), WebAuthn::available() );
+	}
+
 	public function test_rp_id_is_host_only(): void {
 		$this->assertSame( 'shop.example.com', WebAuthn::rp_id_from_url( 'https://shop.example.com/wp' ) );
 		$this->assertSame( 'localhost', WebAuthn::rp_id_from_url( 'http://localhost:8888' ) );

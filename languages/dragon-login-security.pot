@@ -1,0 +1,431 @@
+# Copyright (C) 2026 Dragon Core
+# This file is distributed under the GPL v2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Dragon Login Security 1.0.9\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/dragon-login-security\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-08-30T19:04:48+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.11.0\n"
+"X-Domain: dragon-login-security\n"
+
+#. Plugin Name of the plugin
+#: dragon-login-security.php
+#: admin/views/settings.php:20
+#: includes/class-admin.php:64
+#: includes/class-privacy.php:37
+#: includes/class-privacy.php:52
+#: includes/class-privacy.php:66
+msgid "Dragon Login Security"
+msgstr ""
+
+#. Plugin URI of the plugin
+#: dragon-login-security.php
+msgid "https://dragoncore.ltd/plugins/dragon-login-security"
+msgstr ""
+
+#. Description of the plugin
+#: dragon-login-security.php
+msgid "Brute-force protection and modern two-factor authentication (authenticator apps, backup codes, and passkeys) for WordPress. Feeds Dragon Activity Log when installed."
+msgstr ""
+
+#. Author of the plugin
+#: dragon-login-security.php
+msgid "Dragon Core"
+msgstr ""
+
+#. Author URI of the plugin
+#: dragon-login-security.php
+msgid "https://dragoncore.ltd"
+msgstr ""
+
+#: admin/views/2fa-challenge.php:21
+msgid "Two-Factor Authentication"
+msgstr ""
+
+#: admin/views/2fa-challenge.php:37
+msgid "Use a passkey"
+msgstr ""
+
+#: admin/views/2fa-challenge.php:40
+msgid "— or —"
+msgstr ""
+
+#: admin/views/2fa-challenge.php:50
+msgid "No usable second factor is available for this account right now. Ask an administrator to reset your two-factor settings."
+msgstr ""
+
+#: admin/views/2fa-challenge.php:55
+msgid "Authentication code"
+msgstr ""
+
+#: admin/views/2fa-challenge.php:60
+msgid "Use a backup code instead"
+msgstr ""
+
+#: admin/views/2fa-challenge.php:64
+msgid "Verify"
+msgstr ""
+
+#: admin/views/profile-2fa.php:19
+msgid "Login Security (Two-Factor)"
+msgstr ""
+
+#: admin/views/profile-2fa.php:22
+msgid "Passkeys"
+msgstr ""
+
+#: admin/views/profile-2fa.php:26
+msgid "No passkeys yet."
+msgstr ""
+
+#: admin/views/profile-2fa.php:32
+msgid "Remove"
+msgstr ""
+
+#: admin/views/profile-2fa.php:37
+msgid "Passkeys are unavailable on this site because the WebAuthn library is missing. Reinstall the plugin to restore them."
+msgstr ""
+
+#: admin/views/profile-2fa.php:39
+msgid "Add a passkey"
+msgstr ""
+
+#: admin/views/profile-2fa.php:41
+msgid "A passkey lets you sign in with your device (Face ID, Touch ID, Windows Hello, or a security key) instead of a code."
+msgstr ""
+
+#: admin/views/profile-2fa.php:45
+#: includes/class-privacy.php:93
+msgid "Authenticator app (TOTP)"
+msgstr ""
+
+#: admin/views/profile-2fa.php:48
+msgid "Enabled"
+msgstr ""
+
+#: admin/views/profile-2fa.php:49
+msgid "Disable"
+msgstr ""
+
+#: admin/views/profile-2fa.php:52
+msgid "Not set up. The user enables this from their own profile."
+msgstr ""
+
+#: admin/views/profile-2fa.php:54
+msgid "Set up authenticator app"
+msgstr ""
+
+#: admin/views/profile-2fa.php:56
+msgid "Add this key to your authenticator app (Google Authenticator, 1Password, Authy…):"
+msgstr ""
+
+#: admin/views/profile-2fa.php:58
+msgid "Open in your authenticator app"
+msgstr ""
+
+#: admin/views/profile-2fa.php:60
+msgid "Enter the 6-digit code to confirm:"
+msgstr ""
+
+#: admin/views/profile-2fa.php:62
+msgid "Confirm"
+msgstr ""
+
+#: admin/views/profile-2fa.php:70
+msgid "Backup codes"
+msgstr ""
+
+#. translators: %d: number of remaining codes.
+#: admin/views/profile-2fa.php:75
+msgid "%d unused code remaining."
+msgid_plural "%d unused codes remaining."
+msgstr[0] ""
+msgstr[1] ""
+
+#: admin/views/profile-2fa.php:79
+msgid "Generate new backup codes"
+msgstr ""
+
+#: admin/views/profile-2fa.php:83
+msgid "Download codes"
+msgstr ""
+
+#: admin/views/profile-2fa.php:85
+msgid "Backup codes let you sign in if you lose your passkey or phone. Keep them somewhere safe."
+msgstr ""
+
+#: admin/views/settings.php:23
+#: includes/class-admin.php:106
+msgid "Settings saved."
+msgstr ""
+
+#: admin/views/settings.php:27
+msgid "Brute-force protection is always on (escalating lockout after repeated failed logins). Two-factor authentication is set up per user on each user's profile."
+msgstr ""
+
+#: admin/views/settings.php:34
+msgid "Never lock out these IPs"
+msgstr ""
+
+#: admin/views/settings.php:37
+msgid "One IP per line. These IPs are never counted or locked out (e.g. your office)."
+msgstr ""
+
+#: admin/views/settings.php:41
+msgid "Always block these IPs"
+msgstr ""
+
+#: admin/views/settings.php:44
+msgid "One IP per line. These IPs cannot log in at all."
+msgstr ""
+
+#: admin/views/settings.php:48
+msgid "Proxy headers"
+msgstr ""
+
+#: admin/views/settings.php:52
+msgid "Trust X-Forwarded-For for the client IP"
+msgstr ""
+
+#: admin/views/settings.php:54
+msgid "Only enable this if your site is behind a trusted reverse proxy or load balancer. Otherwise attackers can spoof their IP."
+msgstr ""
+
+#: admin/views/settings.php:57
+msgid "Trusted proxy IPs / ranges (optional)"
+msgstr ""
+
+#: admin/views/settings.php:60
+msgid "One IP or CIDR range per line — your proxy / CDN addresses. When set, the client IP is the first X-Forwarded-For address that is not one of these. Leave empty if a single proxy sits in front (the rightmost forwarded address is used)."
+msgstr ""
+
+#: admin/views/settings.php:64
+msgid "Delete all data on uninstall"
+msgstr ""
+
+#: admin/views/settings.php:68
+msgid "When the plugin is deleted, remove lockout history, passkeys, 2FA enrolments and settings. Leave off to keep them for a future reinstall."
+msgstr ""
+
+#: admin/views/settings.php:73
+msgid "Save Settings"
+msgstr ""
+
+#: admin/views/settings.php:83
+msgid "Import from another plugin"
+msgstr ""
+
+#: admin/views/settings.php:84
+msgid "Carry your allow and deny IP lists over in one click. Nothing is removed from the other plugin."
+msgstr ""
+
+#. translators: %s: source plugin name
+#: admin/views/settings.php:93
+msgid "Import from %s"
+msgstr ""
+
+#: includes/class-admin.php:43
+msgid "Dragon Login Security: the bundled WebAuthn library (vendor/lbuchs/webauthn) is missing, so passkeys are unavailable. Authenticator apps and backup codes still work. Reinstall the plugin to restore passkeys."
+msgstr ""
+
+#: includes/class-admin.php:65
+msgid "Login Security"
+msgstr ""
+
+#: includes/class-admin.php:82
+msgid "Settings"
+msgstr ""
+
+#: includes/class-ajax.php:48
+#: includes/class-importer.php:55
+msgid "Permission denied."
+msgstr ""
+
+#: includes/class-ajax.php:65
+msgid "You can only set up two-factor for your own account."
+msgstr ""
+
+#: includes/class-ajax.php:115
+msgid "That code was not correct."
+msgstr ""
+
+#: includes/class-ajax.php:121
+msgid "Authenticator app enabled."
+msgstr ""
+
+#: includes/class-ajax.php:139
+msgid "Passkeys are unavailable on this site because the WebAuthn library is missing."
+msgstr ""
+
+#: includes/class-ajax.php:166
+msgid "Passkey registration failed."
+msgstr ""
+
+#: includes/class-ajax.php:170
+#: includes/class-privacy.php:109
+msgid "Passkey"
+msgstr ""
+
+#: includes/class-ajax.php:172
+msgid "Passkey added."
+msgstr ""
+
+#: includes/class-ajax.php:185
+msgid "Could not remove passkey."
+msgstr ""
+
+#: includes/class-events.php:26
+msgid "Failed login attempt"
+msgstr ""
+
+#: includes/class-events.php:27
+msgid "IP locked out (brute force)"
+msgstr ""
+
+#: includes/class-events.php:28
+msgid "Two-factor enrolled"
+msgstr ""
+
+#: includes/class-events.php:29
+msgid "Two-factor disabled"
+msgstr ""
+
+#: includes/class-events.php:30
+msgid "Two-factor passed"
+msgstr ""
+
+#: includes/class-events.php:31
+msgid "Two-factor failed"
+msgstr ""
+
+#: includes/class-events.php:32
+msgid "Two-factor skipped (trusted device)"
+msgstr ""
+
+#: includes/class-events.php:33
+msgid "Passkey added"
+msgstr ""
+
+#: includes/class-events.php:34
+msgid "Passkey removed"
+msgstr ""
+
+#: includes/class-importer.php:36
+msgid "Limit Login Attempts (Reloaded)"
+msgstr ""
+
+#: includes/class-importer.php:43
+msgid "Wordfence"
+msgstr ""
+
+#: includes/class-importer.php:75
+msgid "Unknown import source."
+msgstr ""
+
+#. translators: 1: allow-list count, 2: deny-list count, 3: skipped count
+#: includes/class-importer.php:84
+msgid "Import finished: %1$d allow-list and %2$d deny-list addresses added; %3$d entries skipped (ranges or invalid)."
+msgstr ""
+
+#: includes/class-limit-login.php:100
+msgid "Too many failed attempts. Please try again later."
+msgstr ""
+
+#. translators: 1: IP, 2: attempts.
+#: includes/class-limit-login.php:220
+msgid "IP %1$s locked out after %2$d failed attempts"
+msgstr ""
+
+#. translators: %s: username.
+#: includes/class-limit-login.php:222
+msgid "Failed login for \"%s\""
+msgstr ""
+
+#: includes/class-privacy.php:39
+msgid "This site uses Dragon Login Security for brute-force protection and two-factor authentication. It stores, in this site&#8217;s own database: each enrolled user&#8217;s authenticator secret (encrypted), backup codes (hashed), and passkey public keys with device labels; and, for brute-force protection, the IP address and attempted username of failed logins. Lockout records are pruned automatically on a retention schedule. No data is sent to any third party."
+msgstr ""
+
+#: includes/class-privacy.php:94
+msgid "Enrolled (secret stored encrypted; not exportable)"
+msgstr ""
+
+#: includes/class-privacy.php:94
+msgid "Not enrolled"
+msgstr ""
+
+#: includes/class-privacy.php:97
+msgid "Backup codes remaining"
+msgstr ""
+
+#. translators: 1: passkey label, 2: created date, 3: last-used date
+#: includes/class-privacy.php:112
+msgid "%1$s (registered %2$s, last used %3$s)"
+msgstr ""
+
+#: includes/class-privacy.php:113
+msgid "unnamed device"
+msgstr ""
+
+#: includes/class-privacy.php:115
+msgid "never"
+msgstr ""
+
+#: includes/class-privacy.php:125
+msgid "Failed-login records referencing this username"
+msgstr ""
+
+#: includes/class-privacy.php:133
+msgid "Login security"
+msgstr ""
+
+#: includes/class-privacy.php:176
+msgid "Two-factor enrolment and lockout history removed. The user can log in with their password and re-enrol."
+msgstr ""
+
+#: includes/class-two-factor.php:76
+msgid "Two-factor authentication is required for this account. Create an application password for programmatic access."
+msgstr ""
+
+#: includes/class-two-factor.php:106
+msgid "Authenticator secret could not be decrypted and was cleared."
+msgstr ""
+
+#: includes/class-two-factor.php:254
+msgid "That code was not correct. Please try again."
+msgstr ""
+
+#. translators: %s: username.
+#: includes/class-two-factor.php:353
+msgid "Two-factor passed: %s"
+msgstr ""
+
+#. translators: %s: username.
+#: includes/class-two-factor.php:355
+msgid "Two-factor failed: %s"
+msgstr ""
+
+#: includes/class-user-profile.php:46
+msgid "Remove this passkey?"
+msgstr ""
+
+#: includes/class-user-profile.php:47
+msgid "Turn off your authenticator app? Your account will no longer ask for a code at sign-in."
+msgstr ""
+
+#: includes/class-user-profile.php:48
+msgid "Generate new backup codes? Your existing codes stop working immediately."
+msgstr ""
+
+#: includes/class-user-profile.php:49
+msgid "Could not add passkey."
+msgstr ""
+
+#: includes/class-user-profile.php:50
+msgid "Save these codes now — each works once and they will not be shown again."
+msgstr ""

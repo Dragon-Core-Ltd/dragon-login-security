@@ -24,6 +24,24 @@ class Admin {
 		add_action( 'admin_init', array( $this, 'maybe_save' ) );
 		add_filter( 'plugin_action_links_' . DRAGONLOGINSECURITY_PLUGIN_BASENAME, array( $this, 'action_links' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
+		add_action( 'admin_notices', array( $this, 'library_notice' ) );
+	}
+
+	/**
+	 * Warn on the settings screen when the WebAuthn library is not loaded, so
+	 * the administrator knows why passkeys are unavailable.
+	 */
+	public function library_notice(): void {
+		if ( WebAuthn::available() || ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		if ( ! $screen || 'settings_page_dragon-login-security' !== $screen->id ) {
+			return;
+		}
+		echo '<div class="notice notice-warning"><p>';
+		esc_html_e( 'Dragon Login Security: the bundled WebAuthn library (vendor/lbuchs/webauthn) is missing, so passkeys are unavailable. Authenticator apps and backup codes still work. Reinstall the plugin to restore passkeys.', 'dragon-login-security' );
+		echo '</p></div>';
 	}
 
 	/**

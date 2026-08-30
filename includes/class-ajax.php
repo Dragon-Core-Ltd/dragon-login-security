@@ -132,11 +132,21 @@ class Ajax {
 	}
 
 	/**
+	 * Reject passkey enrolment when the WebAuthn library is not loaded.
+	 */
+	private function require_webauthn(): void {
+		if ( ! WebAuthn::available() ) {
+			wp_send_json_error( array( 'message' => __( 'Passkeys are unavailable on this site because the WebAuthn library is missing.', 'dragon-login-security' ) ), 501 );
+		}
+	}
+
+	/**
 	 * Return passkey registration options.
 	 */
 	public function passkey_options(): void {
 		$user_id = $this->guard_self();
-		$user    = get_userdata( $user_id );
+		$this->require_webauthn();
+		$user = get_userdata( $user_id );
 		wp_send_json_success( WebAuthn::registration_args( $user_id, $user ? $user->user_login : (string) $user_id ) );
 	}
 
@@ -145,9 +155,10 @@ class Ajax {
 	 */
 	public function passkey_register(): void {
 		$user_id = $this->guard_self();
-		$client  = isset( $_POST['client_data'] ) ? sanitize_text_field( wp_unslash( $_POST['client_data'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in guard().
-		$attest  = isset( $_POST['attestation'] ) ? sanitize_text_field( wp_unslash( $_POST['attestation'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in guard().
-		$label   = isset( $_POST['label'] ) ? sanitize_text_field( wp_unslash( $_POST['label'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in guard().
+		$this->require_webauthn();
+		$client = isset( $_POST['client_data'] ) ? sanitize_text_field( wp_unslash( $_POST['client_data'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in guard().
+		$attest = isset( $_POST['attestation'] ) ? sanitize_text_field( wp_unslash( $_POST['attestation'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in guard().
+		$label  = isset( $_POST['label'] ) ? sanitize_text_field( wp_unslash( $_POST['label'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in guard().
 
 		try {
 			$cred = WebAuthn::verify_registration( $user_id, $client, $attest );

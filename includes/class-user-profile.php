@@ -66,6 +66,7 @@ class User_Profile {
 		$dragonloginsecurity_is_self  = ( get_current_user_id() === $user->ID );
 		$dragonloginsecurity_totp_on  = '' !== (string) get_user_meta( $user->ID, Two_Factor::TOTP_META, true );
 		$dragonloginsecurity_passkeys = Credentials::for_user( $user->ID );
+		$dragonloginsecurity_wa_ok    = WebAuthn::available();
 		$dragonloginsecurity_backup_n = Provider_Backup_Codes::remaining( $user->ID );
 		require DRAGONLOGINSECURITY_PLUGIN_DIR . 'admin/views/profile-2fa.php';
 	}

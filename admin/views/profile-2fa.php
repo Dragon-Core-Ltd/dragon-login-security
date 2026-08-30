@@ -6,6 +6,7 @@
  * @var \WP_User $dragonloginsecurity_user
  * @var bool     $dragonloginsecurity_totp_on
  * @var array    $dragonloginsecurity_passkeys
+ * @var bool     $dragonloginsecurity_wa_ok
  * @var int      $dragonloginsecurity_backup_n
  */
 
@@ -32,7 +33,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 					</li>
 				<?php endforeach; ?>
 			</ul>
-			<?php if ( $dragonloginsecurity_is_self ) : ?>
+			<?php if ( ! $dragonloginsecurity_wa_ok ) : ?>
+				<p class="dls-muted"><?php esc_html_e( 'Passkeys are unavailable on this site because the WebAuthn library is missing. Reinstall the plugin to restore them.', 'dragon-login-security' ); ?></p>
+			<?php elseif ( $dragonloginsecurity_is_self ) : ?>
 				<button type="button" class="button" id="dls-add-passkey"><?php esc_html_e( 'Add a passkey', 'dragon-login-security' ); ?></button>
 			<?php endif; ?>
 			<p class="description"><?php esc_html_e( 'A passkey lets you sign in with your device (Face ID, Touch ID, Windows Hello, or a security key) instead of a code.', 'dragon-login-security' ); ?></p>

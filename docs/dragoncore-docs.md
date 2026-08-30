@@ -3,7 +3,7 @@
 Brute-force protection and modern two-factor authentication — passkeys, authenticator apps, and backup codes — in one lightweight plugin.
 
 ## Requirements
-WordPress 6.2+, PHP 8.0+. Passkeys require HTTPS (any modern device with a screen lock can create one).
+WordPress 6.2+, PHP 8.0+. Passkeys require HTTPS (any modern device with a screen lock can create one). Passkey verification uses the bundled lbuchs/WebAuthn library (MIT), shipped in the plugin's `vendor/` folder; if that folder is ever missing from an install, passkeys are switched off cleanly (a notice appears on the settings screen) while authenticator apps and backup codes keep working.
 
 ## Brute-force protection
 On automatically. Failed logins trigger escalating lockouts per IP; allow/deny lists live under **Settings → Login Security**.
@@ -28,7 +28,7 @@ wp dragon-login-security disable-2fa <username>
 If Limit Login Attempts (Reloaded) or Wordfence is (or was) installed, **Settings → Login Security (import cards at the bottom of the settings tab)** carries your allow/deny IP lists across in one click. Only valid single IP addresses are imported; ranges are skipped and reported.
 
 ## Data & privacy
-Stored in your own database: authenticator secrets (encrypted), backup codes (hashed), passkey public keys with device labels, and the IP + username of failed logins (pruned on a retention schedule). The plugin integrates WordPress's privacy tools: personal-data **export** shows a user's enrolment facts (never secrets) and **erasure** removes their second-factor material and lockout history. **Uninstalling keeps your data by default**; opt into deletion in Settings.
+Stored in your own database: authenticator secrets (encrypted), backup codes (hashed), passkey public keys with device labels, and the IP + username of failed logins (pruned on a retention schedule). The plugin makes no external requests: all checks run on your own server, and nothing is sent to Dragon Core or any third party. The plugin integrates WordPress's privacy tools: personal-data **export** shows a user's enrolment facts (never secrets) and **erasure** removes their second-factor material and lockout history. **Uninstalling keeps your data by default**; opt into deletion in Settings.
 
 ## Why is there no "hide wp-login" option?
 Renaming wp-login.php breaks REST and app passwords while adding little real protection, so it's deliberately not included.

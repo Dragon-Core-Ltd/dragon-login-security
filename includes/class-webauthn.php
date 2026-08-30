@@ -29,6 +29,17 @@ class WebAuthn {
 	const CHALLENGE_TTL = 300;
 
 	/**
+	 * Whether the WebAuthn library is loaded. Passkey ceremonies depend on it;
+	 * when it is absent every entry point below degrades to "unavailable"
+	 * instead of failing.
+	 *
+	 * @return bool
+	 */
+	public static function available(): bool {
+		return class_exists( \lbuchs\WebAuthn\WebAuthn::class );
+	}
+
+	/**
 	 * The relying-party id (registrable host) for a site URL.
 	 *
 	 * @param string $url Site URL.
@@ -86,8 +97,12 @@ class WebAuthn {
 	 * Build a fresh lbuchs WebAuthn instance for this site.
 	 *
 	 * @return \lbuchs\WebAuthn\WebAuthn
+	 * @throws \RuntimeException When the library is not loaded.
 	 */
 	private static function lib(): \lbuchs\WebAuthn\WebAuthn {
+		if ( ! self::available() ) {
+			throw new \RuntimeException( 'WebAuthn library unavailable.' );
+		}
 		$rp_id = self::rp_id_from_url( home_url() );
 		return new \lbuchs\WebAuthn\WebAuthn( self::RP_NAME, $rp_id, array( 'none' ) );
 	}
@@ -108,6 +123,7 @@ class WebAuthn {
 	 * @param int    $user_id    User id.
 	 * @param string $user_login Username (relying-party user name).
 	 * @return array JSON-serializable PublicKeyCredentialCreationOptions.
+	 * @throws \RuntimeException When the library is not loaded.
 	 */
 	public static function registration_args( int $user_id, string $user_login ): array {
 		$lib     = self::lib();
@@ -159,6 +175,7 @@ class WebAuthn {
 	 *
 	 * @param int $user_id User id (second-factor: user already known).
 	 * @return array{args:array,token:string}
+	 * @throws \RuntimeException When the library is not loaded.
 	 */
 	public static function authentication_args( int $user_id ): array {
 		$lib   = self::lib();
@@ -185,6 +202,9 @@ class WebAuthn {
 	 * @return bool
 	 */
 	public static function verify_authentication( int $user_id, string $token, string $credential_id_b64u, string $client_data_b64, string $auth_data_b64, string $signature_b64 ): bool {
+		if ( ! self::available() ) {
+			return false;
+		}
 		$challenge = self::take_challenge( 'dragonloginsecurity_wa_auth_' . $token );
 		if ( '' === $challenge ) {
 			return false;

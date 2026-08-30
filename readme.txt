@@ -4,7 +4,7 @@ Tags: two factor, 2fa, passkeys, login security, brute force
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.0.8
+Stable tag: 1.0.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -51,7 +51,31 @@ No. Renaming wp-login.php breaks REST and other login paths and offers little re
 
 Yes — when Activity Log is active, login and two-factor events are recorded in its tamper-evident audit. Dragon Login Security works fully without it.
 
+== External services ==
+
+This plugin makes no external requests. Brute-force protection, two-factor
+checks and passkey verification all run on your own server against your own
+database; nothing is sent to Dragon Core or any third party.
+
+The bundled lbuchs/WebAuthn library contains an optional FIDO Metadata Service
+lookup (https://mds.fidoalliance.org/) for attestation-certificate validation.
+Dragon Login Security never calls it: passkeys are registered with attestation
+set to "none", so no attestation certificates are validated and no request is
+made to that service.
+
+= Bundled libraries =
+
+* lbuchs/webauthn (MIT) - https://github.com/lbuchs/WebAuthn - server-side WebAuthn (FIDO2) ceremony handling for passkeys.
+
 == Changelog ==
+
+= 1.0.9 =
+* Resilience: if the bundled WebAuthn library is missing from the install, passkeys are switched off cleanly (enrolment and sign-in buttons hidden, a clear admin notice on the settings screen) instead of causing an error. Authenticator apps and backup codes are unaffected.
+* Documentation: added an External services section and a bundled-libraries note to the readme.
+
+= 1.0.8 =
+* Security: the client IP is now resolved safely behind a reverse proxy/CDN (configurable trusted proxies), closing a bypass where a spoofed X-Forwarded-For header could dodge login lockouts or lock out other IPs.
+* Hardening: authenticated encryption for stored secrets (TOTP seeds, backup codes).
 
 = 1.0.7 =
 * Compatibility: tested up to WordPress 7.1.
@@ -76,7 +100,7 @@ Yes — when Activity Log is active, login and two-factor events are recorded in
 * Renamed all option, hook, function and constant prefixes to the unique `dragonloginsecurity_` / `DRAGONLOGINSECURITY_` prefix. Existing settings are migrated automatically on update; 2FA enrolment data (user meta) and the credentials/lockout tables are unaffected.
 
 = 1.0.1 =
-* Add filters (dls_should_challenge, dls_2fa_passed, dls_challenge_form) so Dragon Login Security Pro can offer trusted devices. No change to default behavior.
+* Add extension hooks around the 2FA challenge for add-ons; default behaviour unchanged.
 
 = 1.0.0 =
 * Initial release.

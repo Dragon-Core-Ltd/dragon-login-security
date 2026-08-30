@@ -46,6 +46,10 @@ login_header( __( 'Two-Factor Authentication', 'dragon-login-security' ) );
 		<input type="hidden" name="dragonloginsecurity_wa_sig" id="dragonloginsecurity_wa_sig" value="">
 	<?php endif; ?>
 
+	<?php if ( empty( $dragonloginsecurity_c['methods'] ) ) : ?>
+		<p><?php esc_html_e( 'No usable second factor is available for this account right now. Ask an administrator to reset your two-factor settings.', 'dragon-login-security' ); ?></p>
+	<?php endif; ?>
+
 	<?php if ( $dragonloginsecurity_has( 'totp' ) || $dragonloginsecurity_has( 'backup' ) ) : ?>
 		<p>
 			<label for="dragonloginsecurity_code"><?php esc_html_e( 'Authentication code', 'dragon-login-security' ); ?></label>
@@ -63,9 +67,8 @@ login_header( __( 'Two-Factor Authentication', 'dragon-login-security' ) );
 
 	<?php
 	/**
-	 * Fires inside the 2FA challenge form. Add-ons (e.g. Login Security Pro's
-	 * trusted devices) use this to inject an opt-in field such as "remember this
-	 * device".
+	 * Fires inside the 2FA challenge form. Add-ons use this to inject an opt-in
+	 * field such as "remember this device".
 	 *
 	 * @param \WP_User $user The user being challenged.
 	 */

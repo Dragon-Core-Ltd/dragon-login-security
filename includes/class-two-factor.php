@@ -133,7 +133,7 @@ class Two_Factor {
 	 */
 	public function available_methods( int $user_id ): array {
 		$methods = array();
-		if ( Provider_Passkey::is_enrolled( $user_id ) ) {
+		if ( WebAuthn::available() && Provider_Passkey::is_enrolled( $user_id ) ) {
 			$methods[] = 'passkey';
 		}
 		if ( null !== $this->totp_secret( $user_id ) ) {
@@ -158,8 +158,8 @@ class Two_Factor {
 
 		/**
 		 * Whether to challenge this interactive login for a second factor. Add-ons
-		 * (e.g. Login Security Pro's trusted devices) may return false to skip the
-		 * challenge for a device already verified. This filter is consulted ONLY on
+		 * implementing trusted devices may return false to skip the challenge for
+		 * a device already verified. This filter is consulted ONLY on
 		 * the interactive form-login path; non-interactive credential auth
 		 * (XML-RPC/REST) is rejected for 2FA users regardless, so a trusted-device
 		 * skip can never become a non-interactive bypass.
@@ -229,8 +229,8 @@ class Two_Factor {
 			wp_set_auth_cookie( $user_id, $remember );
 			/**
 			 * Fires after a second factor is verified and the auth cookie is set.
-			 * Add-ons (e.g. Login Security Pro) use this to remember a trusted
-			 * device based on their own opt-in field on the challenge form.
+			 * Add-ons use this to remember a trusted device based on their own
+			 * opt-in field on the challenge form.
 			 *
 			 * @param int $user_id The now fully-authenticated user.
 			 */
