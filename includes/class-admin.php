@@ -25,6 +25,31 @@ class Admin {
 		add_filter( 'plugin_action_links_' . DRAGONLOGINSECURITY_PLUGIN_BASENAME, array( $this, 'action_links' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
 		add_action( 'admin_notices', array( $this, 'library_notice' ) );
+		add_action( 'admin_notices', array( $this, 'schema_notice' ) );
+	}
+
+	/**
+	 * Tell administrators when the plugin's tables could not be created, so a
+	 * missing CREATE privilege does not go unnoticed.
+	 */
+	public function schema_notice(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		$failure = get_option( Plugin::SCHEMA_FAILURE_OPTION );
+		if ( ! is_array( $failure ) || empty( $failure['tables'] ) ) {
+			return;
+		}
+		echo '<div class="notice notice-error"><p>';
+		echo esc_html(
+			sprintf(
+				/* translators: 1: comma-separated table names, 2: UTC date and time of the last attempt */
+				__( 'Dragon Login Security could not create its database tables (%1$s; last attempt %2$s UTC). Check that the database user has the CREATE privilege, then deactivate and reactivate the plugin to retry.', 'dragon-login-security' ),
+				implode( ', ', array_map( 'strval', (array) $failure['tables'] ) ),
+				gmdate( 'Y-m-d H:i', (int) ( $failure['time'] ?? 0 ) )
+			)
+		);
+		echo '</p></div>';
 	}
 
 	/**
@@ -100,13 +125,63 @@ class Admin {
 			'allow_ips'       => $this->parse_ips( isset( $_POST['allow_ips'] ) ? wp_unslash( $_POST['allow_ips'] ) : '' ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Parsed + validated line-by-line in parse_ips().
 			'deny_ips'        => $this->parse_ips( isset( $_POST['deny_ips'] ) ? wp_unslash( $_POST['deny_ips'] ) : '' ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Parsed + validated line-by-line in parse_ips().
 		);
-		update_option( 'dragonloginsecurity_settings', $settings, false );
-		update_option( 'dragonloginsecurity_delete_data_on_uninstall', isset( $_POST['dragonloginsecurity_delete_data'] ) );
+		$saved    = self::persist_settings( $settings );
 
-		add_settings_error( 'dls', 'saved', __( 'Settings saved.', 'dragon-login-security' ), 'updated' );
-		set_transient( 'settings_errors', get_settings_errors(), 30 );
-		wp_safe_redirect( add_query_arg( 'updated', '1', admin_url( 'options-general.php?page=dragon-login-security' ) ) );
+		/*
+		 * The uninstall preference is a separate option, so changing only the
+		 * checkbox leaves the settings array comparing equal and its write
+		 * counting as a success. update_option() also returns false for an
+		 * unchanged value and stores a boolean as '1' or '', so the stored value
+		 * is read back and compared as a boolean.
+		 */
+		$delete_data = isset( $_POST['dragonloginsecurity_delete_data'] );
+		update_option( 'dragonloginsecurity_delete_data_on_uninstall', $delete_data );
+		$delete_saved = (bool) get_option( 'dragonloginsecurity_delete_data_on_uninstall' ) === $delete_data;
+
+		self::record_save_result( $saved, $delete_saved );
+		wp_safe_redirect( admin_url( 'options-general.php?page=dragon-login-security' ) );
 		exit;
+	}
+
+	/**
+	 * Store the outcome of a settings save for the notice shown after redirect.
+	 *
+	 * The two writes are reported separately so a partial save is described as
+	 * one, rather than the settings result standing in for both.
+	 *
+	 * @param bool $saved        Whether the settings were confirmed stored.
+	 * @param bool $delete_saved Whether the uninstall preference was confirmed stored.
+	 */
+	public static function record_save_result( bool $saved, bool $delete_saved = true ): void {
+		if ( ! $saved ) {
+			$message = __( 'Settings could not be saved. Your previous settings are still in effect; try again.', 'dragon-login-security' );
+		} elseif ( ! $delete_saved ) {
+			$message = __( 'Settings saved, but the "delete data on uninstall" preference could not be stored and is unchanged. Try again.', 'dragon-login-security' );
+		} else {
+			$message = __( 'Settings saved.', 'dragon-login-security' );
+		}
+
+		set_transient(
+			'dragonloginsecurity_settings_notice',
+			array(
+				'type'    => $saved && $delete_saved ? 'success' : 'error',
+				'message' => $message,
+			),
+			60
+		);
+	}
+
+	/**
+	 * Write the settings option and confirm the stored value. update_option()
+	 * returns false both on failure and when nothing changed, so the outcome
+	 * is judged by reading the option back.
+	 *
+	 * @param array $settings Full settings array.
+	 * @return bool Whether the option now holds exactly these settings.
+	 */
+	public static function persist_settings( array $settings ): bool {
+		update_option( 'dragonloginsecurity_settings', $settings, false );
+		return get_option( 'dragonloginsecurity_settings' ) === $settings;
 	}
 
 	/**

@@ -48,4 +48,50 @@ class BackupCodesTest extends TestCase {
 		$hashes = array_map( fn( $c ) => password_hash( strtolower( $c ), PASSWORD_DEFAULT ), $plain );
 		$this->assertFalse( Provider_Backup_Codes::match( $hashes, 'ffff0-00000' ) );
 	}
+
+	/**
+	 * Two requests that both read the same code list, as concurrent logins do.
+	 */
+	public function test_interleaved_consumption_cannot_bring_a_used_code_back(): void {
+		$GLOBALS['dls_test_user_meta']      = array();
+		$GLOBALS['dls_test_meta_write_fails'] = false;
+
+		$plain  = Provider_Backup_Codes::generate( 2 );
+		$this->assertTrue( Provider_Backup_Codes::store( 5, $plain ) );
+
+		// Request A and request B both start from the stored list of two codes.
+		// A consumes the first, B consumes the second. Writing the whole list
+		// back from a stale read would restore whichever code the other used.
+		$this->assertTrue( Provider_Backup_Codes::verify_and_consume( 5, $plain[0] ) );
+		$this->assertTrue( Provider_Backup_Codes::verify_and_consume( 5, $plain[1] ) );
+
+		$this->assertSame( 0, Provider_Backup_Codes::remaining( 5 ) );
+		$this->assertFalse(
+			Provider_Backup_Codes::verify_and_consume( 5, $plain[0] ),
+			'A consumed code must not become valid again.'
+		);
+		$this->assertFalse( Provider_Backup_Codes::verify_and_consume( 5, $plain[1] ) );
+	}
+
+	public function test_a_consumption_racing_another_does_not_resurrect_the_other_code(): void {
+		$GLOBALS['dls_test_user_meta']        = array();
+		$GLOBALS['dls_test_meta_write_fails'] = false;
+
+		$plain = Provider_Backup_Codes::generate( 3 );
+		$this->assertTrue( Provider_Backup_Codes::store( 5, $plain ) );
+
+		// Request A reads the list of three. Before A writes, request B runs to
+		// completion and consumes code 3. A then writes the list it read, which
+		// still contains code 3.
+		$GLOBALS['dls_test_after_read'] = static function () use ( $plain ): void {
+			Provider_Backup_Codes::verify_and_consume( 5, $plain[2] );
+		};
+
+		Provider_Backup_Codes::verify_and_consume( 5, $plain[0] );
+
+		$this->assertFalse(
+			Provider_Backup_Codes::verify_and_consume( 5, $plain[2] ),
+			'Code 3 was used by the other request and must stay used.'
+		);
+	}
 }

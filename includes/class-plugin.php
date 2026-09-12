@@ -22,6 +22,22 @@ final class Plugin {
 	const DB_VERSION = '1';
 
 	/**
+	 * Transient that throttles table-creation retries after a failure.
+	 */
+	const SCHEMA_RETRY_TRANSIENT = 'dragonloginsecurity_schema_retry';
+
+	/**
+	 * Marks the stamped schema as confirmed against the real tables, so the
+	 * confirmation costs one query rather than one per request.
+	 */
+	const SCHEMA_VERIFIED_TRANSIENT = 'dragonloginsecurity_schema_verified';
+
+	/**
+	 * Option recording the last failed table creation (missing tables + time).
+	 */
+	const SCHEMA_FAILURE_OPTION = 'dragonloginsecurity_schema_failure';
+
+	/**
 	 * Singleton.
 	 *
 	 * @var Plugin|null
@@ -55,10 +71,26 @@ final class Plugin {
 		( new Importer() )->init_hooks();
 
 		if ( is_admin() ) {
+			// A table lost after install (a dropped table, a restore from a partial
+			// backup, or an install stamped over a failed creation) used to stay
+			// missing until the plugin was deactivated and reactivated, which for a
+			// brute-force plugin means lockouts silently stop being recorded.
+			add_action( 'admin_init', array( $this, 'maybe_repair_schema' ) );
+
 			( new Ajax() )->hook();
 			( new User_Profile() )->hook();
 			( new Admin() )->hook();
 		}
+	}
+
+	/**
+	 * Recreate the tables in wp-admin if any has gone missing.
+	 *
+	 * Throttled by create_tables() itself, and a no-op once the schema has been
+	 * confirmed, so a healthy site pays one cached lookup.
+	 */
+	public function maybe_repair_schema(): void {
+		$this->create_tables();
 	}
 
 	/**
@@ -85,6 +117,10 @@ final class Plugin {
 	 * Activation.
 	 */
 	public function activate(): void {
+		// Activation is an explicit request, so it always retries a failed creation
+		// and re-checks the tables rather than trusting an earlier confirmation.
+		delete_transient( self::SCHEMA_RETRY_TRANSIENT );
+		delete_transient( self::SCHEMA_VERIFIED_TRANSIENT );
 		$this->create_tables();
 		$this->register_cron();
 	}
@@ -112,6 +148,10 @@ final class Plugin {
 				$legacy = get_option( 'dls_' . $name, null );
 				if ( null !== $legacy ) {
 					update_option( 'dragonloginsecurity_' . $name, $legacy );
+					// Keep the legacy copy until the new option is confirmed to hold it.
+					if ( ! self::same_option_value( get_option( 'dragonloginsecurity_' . $name, null ), $legacy ) ) {
+						continue;
+					}
 				}
 			}
 			delete_option( 'dls_' . $name );
@@ -127,6 +167,59 @@ final class Plugin {
 	}
 
 	/**
+	 * Compare two option values, allowing for scalars being stored as strings.
+	 *
+	 * @param mixed $stored   Value read back from the option.
+	 * @param mixed $expected Value that was written.
+	 * @return bool
+	 */
+	private static function same_option_value( $stored, $expected ): bool {
+		if ( is_scalar( $stored ) && is_scalar( $expected ) ) {
+			return (string) $stored === (string) $expected;
+		}
+		return $stored === $expected;
+	}
+
+	/**
+	 * Whether a table exists.
+	 *
+	 * @param string $table Fully-qualified table name.
+	 * @return bool
+	 */
+	public static function table_exists( string $table ): bool {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema check during activation.
+		return $table === $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) );
+	}
+
+	/**
+	 * Whether the stamped schema version is backed by tables that really exist.
+	 *
+	 * A release that stamped the version despite a failed dbDelta leaves a stamp
+	 * that matches the current one, so the stamp alone cannot be trusted: the
+	 * installations needing repair are exactly the ones an unconditional early
+	 * return would skip. The answer is cached for a day so the check is not a
+	 * SHOW TABLES on every request.
+	 *
+	 * @return bool
+	 */
+	private static function schema_confirmed(): bool {
+		if ( get_transient( self::SCHEMA_VERIFIED_TRANSIENT ) ) {
+			return true;
+		}
+
+		foreach ( array( self::credentials_table(), self::lockouts_table() ) as $table ) {
+			if ( ! self::table_exists( $table ) ) {
+				return false;
+			}
+		}
+
+		set_transient( self::SCHEMA_VERIFIED_TRANSIENT, 1, DAY_IN_SECONDS );
+
+		return true;
+	}
+
+	/**
 	 * Register the daily lockout-prune cron (idempotent).
 	 */
 	private function register_cron(): void {
@@ -139,8 +232,11 @@ final class Plugin {
 	 * Create or migrate the tables.
 	 */
 	private function create_tables(): void {
-		if ( self::DB_VERSION === get_option( 'dragonloginsecurity_db_version' ) ) {
+		if ( self::DB_VERSION === get_option( 'dragonloginsecurity_db_version' ) && self::schema_confirmed() ) {
 			return;
+		}
+		if ( get_transient( self::SCHEMA_RETRY_TRANSIENT ) ) {
+			return; // A recent attempt failed; wait for the throttle to expire.
 		}
 
 		global $wpdb;
@@ -148,7 +244,9 @@ final class Plugin {
 		$credentials     = self::credentials_table();
 		$lockouts        = self::lockouts_table();
 
-		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+		if ( ! function_exists( 'dbDelta' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+		}
 
 		dbDelta(
 			"CREATE TABLE {$credentials} (
@@ -180,7 +278,28 @@ final class Plugin {
 			) {$charset_collate};"
 		);
 
+		// dbDelta reports what it attempted, not whether it succeeded. Stamp the
+		// schema version only once both tables exist. A failure is recorded for
+		// the admin notice and throttled so it is not retried on every call.
+		$missing = array_values( array_filter( array( $credentials, $lockouts ), fn( string $table ): bool => ! self::table_exists( $table ) ) );
+		if ( ! empty( $missing ) ) {
+			delete_transient( self::SCHEMA_VERIFIED_TRANSIENT );
+			set_transient( self::SCHEMA_RETRY_TRANSIENT, 1, 10 * MINUTE_IN_SECONDS );
+			update_option(
+				self::SCHEMA_FAILURE_OPTION,
+				array(
+					'tables' => $missing,
+					'time'   => time(),
+				),
+				false
+			);
+			return;
+		}
+
+		delete_transient( self::SCHEMA_RETRY_TRANSIENT );
+		delete_option( self::SCHEMA_FAILURE_OPTION );
 		update_option( 'dragonloginsecurity_db_version', self::DB_VERSION );
+		set_transient( self::SCHEMA_VERIFIED_TRANSIENT, 1, DAY_IN_SECONDS );
 	}
 
 	/**

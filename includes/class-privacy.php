@@ -93,7 +93,7 @@ class Privacy {
 			'name'  => __( 'Authenticator app (TOTP)', 'dragon-login-security' ),
 			'value' => $has_totp ? __( 'Enrolled (secret stored encrypted; not exportable)', 'dragon-login-security' ) : __( 'Not enrolled', 'dragon-login-security' ),
 		);
-		$items[] = array(
+		$items[]  = array(
 			'name'  => __( 'Backup codes remaining', 'dragon-login-security' ),
 			'value' => (string) count( array_filter( $codes ) ),
 		);
@@ -121,7 +121,7 @@ class Privacy {
 		$lockouts = (int) $wpdb->get_var(
 			$wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE username = %s', Plugin::lockouts_table(), $user->user_login )
 		);
-		$items[] = array(
+		$items[]  = array(
 			'name'  => __( 'Failed-login records referencing this username', 'dragon-login-security' ),
 			'value' => (string) $lockouts,
 		);

@@ -4,7 +4,7 @@ Tags: two factor, 2fa, passkeys, login security, brute force
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.0.9
+Stable tag: 1.0.10
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -69,6 +69,17 @@ made to that service.
 
 == Changelog ==
 
+= 1.0.10 =
+* Fixed: importing allow/deny lists from Limit Login Attempts or Wordfence now confirms the lists were stored before reporting success; a failed save shows an error instead of "Import finished".
+* Fixed: the settings screen reports a failed save as an error instead of "Settings saved".
+* Fixed: a passkey sign-in whose signature counter cannot be recorded is now rejected, keeping cloned-authenticator detection intact.
+* Fixed: an authenticator code whose replay guard cannot be recorded is now rejected, so the same code cannot be accepted twice.
+* Fixed: a backup code is only accepted once its removal is stored, and generating or confirming backup codes reports a failed save instead of returning codes that would not work.
+* Fixed: adding a passkey or enabling an authenticator app reports a failed save instead of "added"/"enabled".
+* Fixed: activation stamps the schema version only after both plugin tables exist, so a failed table creation is retried on the next activation.
+* Added: when the tables cannot be created (for example a database user without the CREATE privilege), administrators now see a notice naming the missing tables, and retries are throttled to once every 10 minutes.
+* Fixed: the one-time move of settings from the old option name keeps the old copy until the new one is confirmed.
+
 = 1.0.9 =
 * Resilience: if the bundled WebAuthn library is missing from the install, passkeys are switched off cleanly (enrolment and sign-in buttons hidden, a clear admin notice on the settings screen) instead of causing an error. Authenticator apps and backup codes are unaffected.
 * Documentation: added an External services section and a bundled-libraries note to the readme.
@@ -104,6 +115,11 @@ made to that service.
 
 = 1.0.0 =
 * Initial release.
+
+== Upgrade Notice ==
+
+= 1.0.10 =
+Failed saves are now reported as errors: IP-list import, settings, passkey/authenticator enrolment and backup codes. Update recommended.
 
 == Privacy Policy ==
 

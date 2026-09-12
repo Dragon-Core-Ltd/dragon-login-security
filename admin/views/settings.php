@@ -19,8 +19,10 @@ $dragonloginsecurity_deny  = ! empty( $dragonloginsecurity_s['deny_ips'] ) ? imp
 <div class="wrap dragon-ui">
 	<h1 class="dragon-title"><span class="dragon-mark" aria-hidden="true"></span><?php esc_html_e( 'Dragon Login Security', 'dragon-login-security' ); ?></h1>
 
-	<?php if ( isset( $_GET['updated'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only notice flag. ?>
-		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Settings saved.', 'dragon-login-security' ); ?></p></div>
+	<?php $dragonloginsecurity_settings_notice = get_transient( 'dragonloginsecurity_settings_notice' ); ?>
+	<?php if ( is_array( $dragonloginsecurity_settings_notice ) && ! empty( $dragonloginsecurity_settings_notice['message'] ) ) : ?>
+		<?php delete_transient( 'dragonloginsecurity_settings_notice' ); ?>
+		<div class="notice <?php echo 'error' === ( $dragonloginsecurity_settings_notice['type'] ?? '' ) ? 'notice-error' : 'notice-success'; ?> is-dismissible"><p><?php echo esc_html( $dragonloginsecurity_settings_notice['message'] ); ?></p></div>
 	<?php endif; ?>
 
 	<p class="description">
@@ -73,9 +75,9 @@ $dragonloginsecurity_deny  = ! empty( $dragonloginsecurity_s['deny_ips'] ) ? imp
 		<p><button type="submit" name="dragonloginsecurity_save_settings" class="button button-primary"><?php esc_html_e( 'Save Settings', 'dragon-login-security' ); ?></button></p>
 	</form>
 	<?php $dragonloginsecurity_import_notice = get_transient( 'dragonloginsecurity_import_notice' ); ?>
-	<?php if ( $dragonloginsecurity_import_notice ) : ?>
+	<?php if ( is_array( $dragonloginsecurity_import_notice ) && ! empty( $dragonloginsecurity_import_notice['message'] ) ) : ?>
 		<?php delete_transient( 'dragonloginsecurity_import_notice' ); ?>
-		<div class="notice notice-success is-dismissible"><p><?php echo esc_html( $dragonloginsecurity_import_notice ); ?></p></div>
+		<div class="notice <?php echo 'error' === ( $dragonloginsecurity_import_notice['type'] ?? '' ) ? 'notice-error' : 'notice-success'; ?> is-dismissible"><p><?php echo esc_html( $dragonloginsecurity_import_notice['message'] ); ?></p></div>
 	<?php endif; ?>
 	<?php $dragonloginsecurity_sources = \DragonLoginSecurity\Importer::detect(); ?>
 	<?php if ( ! empty( $dragonloginsecurity_sources ) ) : ?>

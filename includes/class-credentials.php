@@ -98,11 +98,12 @@ class Credentials {
 	 *
 	 * @param int $id    Row id.
 	 * @param int $count New sign count.
+	 * @return bool False when the write failed (zero affected rows is not a failure).
 	 */
-	public static function update_sign_count( int $id, int $count ): void {
+	public static function update_sign_count( int $id, int $count ): bool {
 		global $wpdb;
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Write to plugin's custom table.
-		$wpdb->update(
+		$result = $wpdb->update(
 			Plugin::credentials_table(),
 			array(
 				'sign_count'   => $count,
@@ -112,6 +113,7 @@ class Credentials {
 			array( '%d', '%s' ),
 			array( '%d' )
 		);
+		return false !== $result;
 	}
 
 	/**

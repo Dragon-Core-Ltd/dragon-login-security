@@ -141,7 +141,7 @@ class IP {
 		}
 
 		list( $subnet, $bits ) = explode( '/', $range, 2 );
-		$bits = (int) $bits;
+		$bits                  = (int) $bits;
 
 		$ip_bin     = @inet_pton( $ip ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- inet_pton warns on malformed input; a false result is handled below.
 		$subnet_bin = @inet_pton( $subnet ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- inet_pton warns on malformed input; a false result is handled below.

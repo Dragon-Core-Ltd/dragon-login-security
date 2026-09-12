@@ -77,17 +77,25 @@ class Importer {
 
 		$result = self::merge_lists( $allow, $deny );
 
-		set_transient(
-			'dragonloginsecurity_import_notice',
-			sprintf(
-				/* translators: 1: allow-list count, 2: deny-list count, 3: skipped count */
-				__( 'Import finished: %1$d allow-list and %2$d deny-list addresses added; %3$d entries skipped (ranges or invalid).', 'dragon-login-security' ),
-				$result['allow'],
-				$result['deny'],
-				$result['skipped']
-			),
-			60
-		);
+		if ( $result['saved'] ) {
+			$notice = array(
+				'type'    => 'success',
+				'message' => sprintf(
+					/* translators: 1: allow-list count, 2: deny-list count, 3: skipped count */
+					__( 'Import finished: %1$d allow-list and %2$d deny-list addresses added; %3$d entries skipped (ranges or invalid).', 'dragon-login-security' ),
+					$result['allow'],
+					$result['deny'],
+					$result['skipped']
+				),
+			);
+		} else {
+			$notice = array(
+				'type'    => 'error',
+				'message' => __( 'Import failed: the settings could not be saved, so no addresses were added. Try again.', 'dragon-login-security' ),
+			);
+		}
+
+		set_transient( 'dragonloginsecurity_import_notice', $notice, 60 );
 
 		wp_safe_redirect( admin_url( 'options-general.php?page=dragon-login-security' ) );
 		exit;
@@ -95,11 +103,13 @@ class Importer {
 
 	/**
 	 * Merge candidate lists into the stored settings. Pure apart from the
-	 * option read/write — validation logic is separately testable.
+	 * option read/write - validation logic is separately testable. The counts
+	 * describe what was merged in memory; `saved` reports whether the merged
+	 * lists were confirmed in the database.
 	 *
 	 * @param array $allow Candidate allow-list entries.
 	 * @param array $deny  Candidate deny-list entries.
-	 * @return array{allow:int, deny:int, skipped:int}
+	 * @return array{allow:int, deny:int, skipped:int, saved:bool}
 	 */
 	public static function merge_lists( array $allow, array $deny ): array {
 		$settings = (array) get_option( 'dragonloginsecurity_settings', array() );
@@ -138,12 +148,12 @@ class Importer {
 
 		$settings['allow_ips'] = $current['allow_ips'];
 		$settings['deny_ips']  = $current['deny_ips'];
-		update_option( 'dragonloginsecurity_settings', $settings, false );
 
 		return array(
 			'allow'   => $added['allow'],
 			'deny'    => $added['deny'],
 			'skipped' => $skipped,
+			'saved'   => Admin::persist_settings( $settings ),
 		);
 	}
 }

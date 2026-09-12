@@ -55,4 +55,53 @@ class TotpTest extends TestCase {
 		$this->assertStringContainsString( 'secret=ABC', $uri );
 		$this->assertStringContainsString( 'algorithm=SHA1', $uri );
 	}
+
+	public function test_a_concurrent_verification_cannot_roll_the_replay_counter_backwards(): void {
+		$GLOBALS['dls_test_user_meta']         = array();
+		$GLOBALS['dls_test_meta_write_fails'] = false;
+
+		// Request A is recording step 100. Before it writes, request B records the
+		// newer step 101. A's write must not put the counter back to 100, which
+		// would let step 101 be replayed.
+		$GLOBALS['dls_test_after_read'] = static function (): void {
+			Provider_Totp::consume_step( 5, 101 );
+		};
+
+		Provider_Totp::consume_step( 5, 100 );
+
+		$this->assertSame(
+			101,
+			(int) get_user_meta( 5, Provider_Totp::LAST_STEP_META, true ),
+			'The counter never goes backwards.'
+		);
+		$this->assertFalse( Provider_Totp::consume_step( 5, 101 ), 'Step 101 cannot be replayed.' );
+		$this->assertFalse( Provider_Totp::consume_step( 5, 100 ), 'Nor the older step.' );
+	}
+
+	public function test_the_first_step_is_recorded_and_then_cannot_be_replayed(): void {
+		$GLOBALS['dls_test_user_meta']         = array();
+		$GLOBALS['dls_test_meta_write_fails'] = false;
+		$GLOBALS['dls_test_after_read']       = null;
+
+		$this->assertTrue( Provider_Totp::consume_step( 5, 50 ), 'With nothing recorded yet, the step is accepted.' );
+		$this->assertSame( 50, (int) get_user_meta( 5, Provider_Totp::LAST_STEP_META, true ) );
+		$this->assertFalse( Provider_Totp::consume_step( 5, 50 ) );
+		$this->assertTrue( Provider_Totp::consume_step( 5, 51 ) );
+	}
+
+	public function test_two_requests_racing_the_very_first_step_record_only_the_newer(): void {
+		$GLOBALS['dls_test_user_meta']         = array();
+		$GLOBALS['dls_test_meta_write_fails'] = false;
+
+		// Nothing is recorded yet and both requests see that. Only one row can be
+		// created, and the counter must end up at the newer step.
+		$GLOBALS['dls_test_after_read'] = static function (): void {
+			Provider_Totp::consume_step( 5, 200 );
+		};
+
+		Provider_Totp::consume_step( 5, 199 );
+
+		$this->assertSame( 200, (int) get_user_meta( 5, Provider_Totp::LAST_STEP_META, true ) );
+		$this->assertFalse( Provider_Totp::consume_step( 5, 200 ) );
+	}
 }

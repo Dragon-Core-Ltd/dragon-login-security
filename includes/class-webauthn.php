@@ -234,8 +234,9 @@ class WebAuthn {
 		if ( ! self::sign_count_ok( (int) $cred['sign_count'], $new ) ) {
 			return false;
 		}
-		Credentials::update_sign_count( (int) $cred['id'], $new );
-		return true;
+		// The stored counter is what detects a cloned authenticator on the next
+		// assertion, so an assertion whose counter cannot be recorded is rejected.
+		return Credentials::update_sign_count( (int) $cred['id'], $new );
 	}
 
 	/**

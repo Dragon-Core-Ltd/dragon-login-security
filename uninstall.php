@@ -35,6 +35,8 @@ function dragonloginsecurity_uninstall_site(): void {
 	}
 
 	wp_clear_scheduled_hook( 'dragonloginsecurity_prune_lockouts' );
+	delete_transient( 'dragonloginsecurity_schema_retry' );
+	delete_transient( 'dragonloginsecurity_schema_verified' );
 	wp_clear_scheduled_hook( 'dls_prune_lockouts' );
 }
 

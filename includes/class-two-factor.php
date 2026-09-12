@@ -276,13 +276,9 @@ class Two_Factor {
 				if ( $step < 0 ) {
 					return false;
 				}
-				// Reject replay of a captured code within its validity window.
-				$last = (int) get_user_meta( $user_id, 'dls_totp_last_step', true );
-				if ( $step <= $last ) {
-					return false;
-				}
-				update_user_meta( $user_id, 'dls_totp_last_step', $step );
-				return true;
+				// Reject replay of a captured code within its validity window; the
+				// step must be recorded for the code to count as used.
+				return Provider_TOTP::consume_step( $user_id, $step );
 
 			case 'backup':
 				$code = isset( $_POST['dragonloginsecurity_code'] ) ? sanitize_text_field( wp_unslash( $_POST['dragonloginsecurity_code'] ) ) : '';

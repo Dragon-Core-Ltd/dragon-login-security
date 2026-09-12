@@ -115,7 +115,10 @@ class Ajax {
 			wp_send_json_error( array( 'message' => __( 'That code was not correct.', 'dragon-login-security' ) ) );
 		}
 
-		update_user_meta( $user_id, Two_Factor::TOTP_META, Crypto::encrypt( $secret ) );
+		// A fresh IV makes the ciphertext always differ, so false can only mean a failed write.
+		if ( false === update_user_meta( $user_id, Two_Factor::TOTP_META, Crypto::encrypt( $secret ) ) ) {
+			wp_send_json_error( array( 'message' => __( 'The authenticator could not be saved. Try again.', 'dragon-login-security' ) ) );
+		}
 		delete_transient( 'dragonloginsecurity_totp_pending_' . $user_id );
 		$this->emit( '2fa.enrolled', $user_id );
 		wp_send_json_success( array( 'message' => __( 'Authenticator app enabled.', 'dragon-login-security' ) ) );
@@ -167,7 +170,10 @@ class Ajax {
 		}
 
 		$transports = isset( $_POST['transports'] ) ? sanitize_text_field( wp_unslash( $_POST['transports'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in guard().
-		Credentials::add( $user_id, $cred['credential_id'], $cred['public_key'], $cred['sign_count'], $transports, '' === $label ? __( 'Passkey', 'dragon-login-security' ) : $label );
+		$row_id     = Credentials::add( $user_id, $cred['credential_id'], $cred['public_key'], $cred['sign_count'], $transports, '' === $label ? __( 'Passkey', 'dragon-login-security' ) : $label );
+		if ( 0 === $row_id ) {
+			wp_send_json_error( array( 'message' => __( 'The passkey could not be saved. Try again.', 'dragon-login-security' ) ) );
+		}
 		$this->emit( 'passkey.added', $user_id );
 		wp_send_json_success( array( 'message' => __( 'Passkey added.', 'dragon-login-security' ) ) );
 	}
@@ -191,7 +197,9 @@ class Ajax {
 	public function backup_generate(): void {
 		$user_id = $this->guard_self();
 		$codes   = Provider_Backup_Codes::generate( 10 );
-		Provider_Backup_Codes::store( $user_id, $codes );
+		if ( ! Provider_Backup_Codes::store( $user_id, $codes ) ) {
+			wp_send_json_error( array( 'message' => __( 'Backup codes could not be saved. Try again.', 'dragon-login-security' ) ) );
+		}
 		delete_user_meta( $user_id, 'dls_backup_codes_confirmed' );
 		wp_send_json_success( array( 'codes' => $codes ) );
 	}
@@ -202,6 +210,9 @@ class Ajax {
 	public function backup_confirm(): void {
 		$user_id = $this->guard_self();
 		update_user_meta( $user_id, 'dls_backup_codes_confirmed', 1 );
+		if ( 1 !== (int) get_user_meta( $user_id, 'dls_backup_codes_confirmed', true ) ) {
+			wp_send_json_error( array( 'message' => __( 'Could not record the confirmation. Try again.', 'dragon-login-security' ) ) );
+		}
 		wp_send_json_success();
 	}
 }

@@ -33,6 +33,17 @@ class Provider_TOTP {
 	const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
 	/**
+	 * User-meta key holding the last accepted time step (replay guard).
+	 */
+	const LAST_STEP_META = 'dls_totp_last_step';
+
+	/**
+	 * How many times recording a step is retried when another request changed
+	 * the counter in between. Each retry re-reads and re-compares.
+	 */
+	private const CONSUME_ATTEMPTS = 3;
+
+	/**
 	 * Generate a random base32 secret (160-bit).
 	 *
 	 * @return string
@@ -139,6 +150,52 @@ class Provider_TOTP {
 			}
 		}
 		return -1;
+	}
+
+	/**
+	 * Record a verified time step as used, rejecting replays. A step that is
+	 * not newer than the last recorded one, or that cannot be stored, fails:
+	 * without the stored step the same code would be accepted again.
+	 *
+	 * @param int $user_id User id.
+	 * @param int $step    Time-step counter returned by verify_step().
+	 * @return bool Whether the step is fresh and now recorded.
+	 */
+	public static function consume_step( int $user_id, int $step ): bool {
+		/*
+		 * The counter must only ever move forward. Two requests verifying
+		 * adjacent steps can both read the same old value, and an unconditional
+		 * write would let the older step land last and put the counter back,
+		 * making the newer code replayable. Checking the write's return value
+		 * does not help: the write succeeds, it is simply the wrong value.
+		 *
+		 * So the comparison and the write are one step. $prev_value makes core
+		 * update only a row that still holds the value that was read, and a
+		 * unique add creates the first row only once; either way a request that
+		 * loses the race re-reads and re-compares, and gives up if the stored
+		 * step has caught up with its own.
+		 */
+		for ( $attempt = 0; $attempt < self::CONSUME_ATTEMPTS; $attempt++ ) {
+			$raw  = get_user_meta( $user_id, self::LAST_STEP_META, true );
+			$last = (int) $raw;
+
+			if ( $step <= $last ) {
+				return false;
+			}
+
+			if ( '' === $raw || null === $raw || false === $raw ) {
+				if ( false !== add_user_meta( $user_id, self::LAST_STEP_META, $step, true ) ) {
+					return true;
+				}
+				continue; // Another request recorded the first step; re-read it.
+			}
+
+			if ( false !== update_user_meta( $user_id, self::LAST_STEP_META, $step, $raw ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
