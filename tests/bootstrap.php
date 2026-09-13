@@ -312,3 +312,5 @@ require_once __DIR__ . '/../includes/class-plugin.php';
 require_once __DIR__ . '/../includes/class-credentials.php';
 require_once __DIR__ . '/../includes/class-admin.php';
 require_once __DIR__ . '/../includes/class-importer.php';
+
+require_once __DIR__ . '/../includes/class-pro-pointer.php';

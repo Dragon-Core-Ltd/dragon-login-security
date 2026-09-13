@@ -3,7 +3,7 @@
  * Plugin Name: Dragon Login Security
  * Plugin URI: https://dragoncore.ltd/plugins/dragon-login-security
  * Description: Brute-force protection and modern two-factor authentication (authenticator apps, backup codes, and passkeys) for WordPress. Feeds Dragon Activity Log when installed.
- * Version: 1.0.10
+ * Version: 1.0.11
  * Requires at least: 6.2
  * Requires PHP: 8.0
  * Author: Dragon Core
@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- Namespaced constants; 3-letter prefix is the plugin standard.
-define( 'DRAGONLOGINSECURITY_VERSION', '1.0.10' );
+define( 'DRAGONLOGINSECURITY_VERSION', '1.0.11' );
 define( 'DRAGONLOGINSECURITY_PLUGIN_FILE', __FILE__ );
 define( 'DRAGONLOGINSECURITY_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DRAGONLOGINSECURITY_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -55,6 +55,9 @@ if ( is_admin() ) {
 	require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-user-profile.php';
 	require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-admin.php';
 }
+// Outside the admin guard: its value hooks fire on the login screen and
+// in cron, and it renders nothing until an administrator is on its screen.
+require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-pro-pointer.php';
 
 require_once DRAGONLOGINSECURITY_PLUGIN_DIR . 'includes/class-plugin.php';
 

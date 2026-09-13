@@ -129,6 +129,14 @@ class Limit_Login {
 			if ( $this->is_tier_boundary( $count ) ) {
 				$this->record_lockout( $ip, $username, $count );
 				$this->emit( 'user.lockout', $ip, $username, $count );
+
+				/**
+				 * Fires when an address has been locked out after repeated failures.
+				 *
+				 * @param string $ip    Address locked out.
+				 * @param int    $count Failures counted so far.
+				 */
+				do_action( 'dragonloginsecurity_lockout', $ip, $count );
 			}
 		}
 

@@ -4,7 +4,7 @@ Tags: two factor, 2fa, passkeys, login security, brute force
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.0.10
+Stable tag: 1.0.11
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -68,6 +68,10 @@ made to that service.
 * lbuchs/webauthn (MIT) - https://github.com/lbuchs/WebAuthn - server-side WebAuthn (FIDO2) ceremony handling for passkeys.
 
 == Changelog ==
+
+= 1.0.11 =
+* An "Upgrade to Pro" link on the Plugins screen, a one-line pointer at the foot of the plugin's own screens, and a single dismissible note once the plugin has done its job. All three disappear when the Pro add-on is active; nothing in the free plugin is locked or changed.
+* New `dragonloginsecurity_lockout` action fires when an address is locked out.
 
 = 1.0.10 =
 * Fixed: importing allow/deny lists from Limit Login Attempts or Wordfence now confirms the lists were stored before reporting success; a failed save shows an error instead of "Import finished".

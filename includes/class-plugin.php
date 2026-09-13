@@ -81,6 +81,7 @@ final class Plugin {
 			( new User_Profile() )->hook();
 			( new Admin() )->hook();
 		}
+		( new Pro_Pointer() )->init_hooks();
 	}
 
 	/**
