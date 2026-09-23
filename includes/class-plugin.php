@@ -61,6 +61,7 @@ final class Plugin {
 	 */
 	private function __construct() {
 		self::migrate_legacy_prefix();
+		add_action( 'init', array( __CLASS__, 'ensure_scheduled' ) );
 
 		add_action( 'dragonloginsecurity_prune_lockouts', array( $this, 'prune_lockouts' ) );
 
@@ -162,6 +163,13 @@ final class Plugin {
 		if ( $legacy_cron ) {
 			wp_unschedule_event( $legacy_cron, 'dls_prune_lockouts' );
 		}
+	}
+
+	/**
+	 * Schedule the daily dragonloginsecurity_prune_lockouts event if it is missing. Runs on init because
+	 * scheduling reads every plugin's translated cron_schedules labels.
+	 */
+	public static function ensure_scheduled(): void {
 		if ( ! wp_next_scheduled( 'dragonloginsecurity_prune_lockouts' ) ) {
 			wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'dragonloginsecurity_prune_lockouts' );
 		}
