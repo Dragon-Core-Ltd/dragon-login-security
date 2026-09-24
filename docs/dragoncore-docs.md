@@ -3,7 +3,7 @@
 Brute-force protection and modern two-factor authentication - passkeys, authenticator apps, and backup codes - in one lightweight plugin.
 
 ## Requirements
-WordPress 6.2+, PHP 8.0+. Passkeys require HTTPS (any modern device with a screen lock can create one). Passkey verification uses the bundled lbuchs/WebAuthn library (MIT), shipped in the plugin's `vendor/` folder; if that folder is ever missing from an install, passkeys are switched off cleanly (a notice appears on the settings screen) while authenticator apps and backup codes keep working.
+WordPress 6.2+, PHP 8.0+. Passkeys require HTTPS (any modern device with a screen lock can create one). Passkey verification uses the bundled lbuchs/WebAuthn library (MIT), shipped in the plugin's `vendor/` folder; if that folder is ever missing from an install, passkeys are switched off cleanly (a notice appears on the settings screen) while authenticator apps and backup codes keep working. Every screen, email and notice is translatable; translation files in the plugin's `languages/` folder load automatically.
 
 ## Brute-force protection
 On automatically. Failed logins trigger escalating lockouts per IP; allow/deny lists live under **Settings → Login Security**.

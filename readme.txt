@@ -4,7 +4,7 @@ Tags: two factor, 2fa, passkeys, login security, brute force
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.0.12
+Stable tag: 1.0.13
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -69,6 +69,10 @@ made to that service.
 
 == Changelog ==
 
+= 1.0.13 =
+* Fixed: Login Security events are registered with current versions of Dragon Activity Log again.
+* Every screen, email and alert is now translatable, and translations bundled in the plugin's languages folder now load. Counts use proper plural forms, and numbers and dates follow your site's language.
+
 = 1.0.12 =
 * Fixed: when one of this plugin's scheduled tasks needed re-creating, it was scheduled before WordPress had finished loading, which made WordPress log "translation loading was triggered too early" notices that named other plugins. Scheduling now waits until WordPress is ready. The notices only appeared with debug logging switched on.
 
@@ -124,6 +128,9 @@ made to that service.
 * Initial release.
 
 == Upgrade Notice ==
+
+= 1.0.13 =
+Fixed: login events reach Dragon Activity Log again.
 
 = 1.0.10 =
 Failed saves are now reported as errors: IP-list import, settings, passkey/authenticator enrolment and backup codes. Update recommended.
