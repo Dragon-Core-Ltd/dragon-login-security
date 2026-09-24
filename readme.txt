@@ -4,7 +4,7 @@ Tags: two factor, 2fa, passkeys, login security, brute force
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.0.11
+Stable tag: 1.0.12
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -68,6 +68,9 @@ made to that service.
 * lbuchs/webauthn (MIT) - https://github.com/lbuchs/WebAuthn - server-side WebAuthn (FIDO2) ceremony handling for passkeys.
 
 == Changelog ==
+
+= 1.0.12 =
+* Fixed: when one of this plugin's scheduled tasks needed re-creating, it was scheduled before WordPress had finished loading, which made WordPress log "translation loading was triggered too early" notices that named other plugins. Scheduling now waits until WordPress is ready. The notices only appeared with debug logging switched on.
 
 = 1.0.11 =
 * An "Upgrade to Pro" link on the Plugins screen, a one-line pointer at the foot of the plugin's own screens, and a single dismissible note once the plugin has done its job. All three disappear when the Pro add-on is active; nothing in the free plugin is locked or changed.
