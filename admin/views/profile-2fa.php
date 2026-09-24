@@ -28,7 +28,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<?php foreach ( $dragonloginsecurity_passkeys as $dragonloginsecurity_pk ) : ?>
 					<li data-id="<?php echo esc_attr( (string) $dragonloginsecurity_pk['id'] ); ?>">
 						<?php echo esc_html( $dragonloginsecurity_pk['label'] ); ?>
-						<span class="dls-muted"><?php echo esc_html( $dragonloginsecurity_pk['created_at'] ); ?></span>
+						<span class="dls-muted"><?php echo esc_html( wp_date( get_option( 'date_format' ), (int) strtotime( $dragonloginsecurity_pk['created_at'] . ' UTC' ) ) ); ?></span>
 						<button type="button" class="button-link dls-remove-passkey"><?php esc_html_e( 'Remove', 'dragon-login-security' ); ?></button>
 					</li>
 				<?php endforeach; ?>
@@ -71,8 +71,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 		<td>
 			<p class="dls-muted">
 				<?php
-				/* translators: %d: number of remaining codes. */
-				echo esc_html( sprintf( _n( '%d unused code remaining.', '%d unused codes remaining.', $dragonloginsecurity_backup_n, 'dragon-login-security' ), $dragonloginsecurity_backup_n ) );
+				/* translators: %s: number of remaining codes. */
+				echo esc_html( sprintf( _n( '%s unused code remaining.', '%s unused codes remaining.', $dragonloginsecurity_backup_n, 'dragon-login-security' ), number_format_i18n( $dragonloginsecurity_backup_n ) ) );
 				?>
 			</p>
 			<?php if ( $dragonloginsecurity_is_self ) : ?>

@@ -2,14 +2,14 @@
 # This file is distributed under the GPL v2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Dragon Login Security 1.0.9\n"
+"Project-Id-Version: Dragon Login Security 1.0.12\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/dragon-login-security\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-30T19:04:48+00:00\n"
+"POT-Creation-Date: 2026-09-24T17:14:09+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: dragon-login-security\n"
@@ -17,7 +17,7 @@ msgstr ""
 #. Plugin Name of the plugin
 #: dragon-login-security.php
 #: admin/views/settings.php:20
-#: includes/class-admin.php:64
+#: includes/class-admin.php:89
 #: includes/class-privacy.php:37
 #: includes/class-privacy.php:52
 #: includes/class-privacy.php:66
@@ -53,7 +53,7 @@ msgid "Use a passkey"
 msgstr ""
 
 #: admin/views/2fa-challenge.php:40
-msgid "— or —"
+msgid "- or -"
 msgstr ""
 
 #: admin/views/2fa-challenge.php:50
@@ -141,10 +141,10 @@ msgstr ""
 msgid "Backup codes"
 msgstr ""
 
-#. translators: %d: number of remaining codes.
+#. translators: %s: number of remaining codes.
 #: admin/views/profile-2fa.php:75
-msgid "%d unused code remaining."
-msgid_plural "%d unused codes remaining."
+msgid "%s unused code remaining."
+msgid_plural "%s unused codes remaining."
 msgstr[0] ""
 msgstr[1] ""
 
@@ -160,86 +160,98 @@ msgstr ""
 msgid "Backup codes let you sign in if you lose your passkey or phone. Keep them somewhere safe."
 msgstr ""
 
-#: admin/views/settings.php:23
-#: includes/class-admin.php:106
-msgid "Settings saved."
-msgstr ""
-
-#: admin/views/settings.php:27
+#: admin/views/settings.php:29
 msgid "Brute-force protection is always on (escalating lockout after repeated failed logins). Two-factor authentication is set up per user on each user's profile."
 msgstr ""
 
-#: admin/views/settings.php:34
+#: admin/views/settings.php:36
 msgid "Never lock out these IPs"
 msgstr ""
 
-#: admin/views/settings.php:37
+#: admin/views/settings.php:39
 msgid "One IP per line. These IPs are never counted or locked out (e.g. your office)."
 msgstr ""
 
-#: admin/views/settings.php:41
+#: admin/views/settings.php:43
 msgid "Always block these IPs"
 msgstr ""
 
-#: admin/views/settings.php:44
+#: admin/views/settings.php:46
 msgid "One IP per line. These IPs cannot log in at all."
 msgstr ""
 
-#: admin/views/settings.php:48
+#: admin/views/settings.php:50
 msgid "Proxy headers"
 msgstr ""
 
-#: admin/views/settings.php:52
+#: admin/views/settings.php:54
 msgid "Trust X-Forwarded-For for the client IP"
 msgstr ""
 
-#: admin/views/settings.php:54
+#: admin/views/settings.php:56
 msgid "Only enable this if your site is behind a trusted reverse proxy or load balancer. Otherwise attackers can spoof their IP."
 msgstr ""
 
-#: admin/views/settings.php:57
+#: admin/views/settings.php:59
 msgid "Trusted proxy IPs / ranges (optional)"
 msgstr ""
 
-#: admin/views/settings.php:60
-msgid "One IP or CIDR range per line — your proxy / CDN addresses. When set, the client IP is the first X-Forwarded-For address that is not one of these. Leave empty if a single proxy sits in front (the rightmost forwarded address is used)."
+#: admin/views/settings.php:62
+msgid "One IP or CIDR range per line - your proxy / CDN addresses. When set, the client IP is the first X-Forwarded-For address that is not one of these. Leave empty if a single proxy sits in front (the rightmost forwarded address is used)."
 msgstr ""
 
-#: admin/views/settings.php:64
+#: admin/views/settings.php:66
 msgid "Delete all data on uninstall"
 msgstr ""
 
-#: admin/views/settings.php:68
+#: admin/views/settings.php:70
 msgid "When the plugin is deleted, remove lockout history, passkeys, 2FA enrolments and settings. Leave off to keep them for a future reinstall."
 msgstr ""
 
-#: admin/views/settings.php:73
+#: admin/views/settings.php:75
 msgid "Save Settings"
 msgstr ""
 
-#: admin/views/settings.php:83
+#: admin/views/settings.php:85
 msgid "Import from another plugin"
 msgstr ""
 
-#: admin/views/settings.php:84
+#: admin/views/settings.php:86
 msgid "Carry your allow and deny IP lists over in one click. Nothing is removed from the other plugin."
 msgstr ""
 
 #. translators: %s: source plugin name
-#: admin/views/settings.php:93
+#: admin/views/settings.php:95
 msgid "Import from %s"
 msgstr ""
 
-#: includes/class-admin.php:43
+#. translators: 1: list of table names, 2: UTC date and time of the last attempt
+#: includes/class-admin.php:47
+msgid "Dragon Login Security could not create its database tables (%1$s; last attempt %2$s UTC). Check that the database user has the CREATE privilege, then deactivate and reactivate the plugin to retry."
+msgstr ""
+
+#: includes/class-admin.php:68
 msgid "Dragon Login Security: the bundled WebAuthn library (vendor/lbuchs/webauthn) is missing, so passkeys are unavailable. Authenticator apps and backup codes still work. Reinstall the plugin to restore passkeys."
 msgstr ""
 
-#: includes/class-admin.php:65
+#: includes/class-admin.php:90
 msgid "Login Security"
 msgstr ""
 
-#: includes/class-admin.php:82
+#: includes/class-admin.php:107
 msgid "Settings"
+msgstr ""
+
+#: includes/class-admin.php:157
+msgid "Settings could not be saved. Your previous settings are still in effect; try again."
+msgstr ""
+
+#: includes/class-admin.php:159
+msgid "Settings saved, but the \"delete data on uninstall\" preference could not be stored and is unchanged. Try again."
+msgstr ""
+
+#: includes/class-admin.php:161
+msgid "Settings saved."
 msgstr ""
 
 #: includes/class-ajax.php:48
@@ -255,29 +267,45 @@ msgstr ""
 msgid "That code was not correct."
 msgstr ""
 
-#: includes/class-ajax.php:121
+#: includes/class-ajax.php:120
+msgid "The authenticator could not be saved. Try again."
+msgstr ""
+
+#: includes/class-ajax.php:124
 msgid "Authenticator app enabled."
 msgstr ""
 
-#: includes/class-ajax.php:139
+#: includes/class-ajax.php:142
 msgid "Passkeys are unavailable on this site because the WebAuthn library is missing."
 msgstr ""
 
-#: includes/class-ajax.php:166
+#. translators: %s: date the passkey was added.
+#: includes/class-ajax.php:163
+msgid "Passkey (%s)"
+msgstr ""
+
+#: includes/class-ajax.php:179
 msgid "Passkey registration failed."
 msgstr ""
 
-#: includes/class-ajax.php:170
-#: includes/class-privacy.php:109
-msgid "Passkey"
+#: includes/class-ajax.php:185
+msgid "The passkey could not be saved. Try again."
 msgstr ""
 
-#: includes/class-ajax.php:172
+#: includes/class-ajax.php:188
 msgid "Passkey added."
 msgstr ""
 
-#: includes/class-ajax.php:185
+#: includes/class-ajax.php:201
 msgid "Could not remove passkey."
+msgstr ""
+
+#: includes/class-ajax.php:211
+msgid "Backup codes could not be saved. Try again."
+msgstr ""
+
+#: includes/class-ajax.php:224
+msgid "Could not record the confirmation. Try again."
 msgstr ""
 
 #: includes/class-events.php:26
@@ -328,22 +356,49 @@ msgstr ""
 msgid "Unknown import source."
 msgstr ""
 
-#. translators: 1: allow-list count, 2: deny-list count, 3: skipped count
-#: includes/class-importer.php:84
-msgid "Import finished: %1$d allow-list and %2$d deny-list addresses added; %3$d entries skipped (ranges or invalid)."
+#. translators: 1: allow-list additions, e.g. "3 allow-list addresses", 2: deny-list additions, e.g. "2 deny-list addresses", 3: skipped entries, e.g. "1 entry".
+#: includes/class-importer.php:85
+msgid "Import finished: %1$s and %2$s added; %3$s skipped (ranges or invalid)."
+msgstr ""
+
+#. translators: %s: number of addresses.
+#: includes/class-importer.php:88
+msgid "%s allow-list address"
+msgid_plural "%s allow-list addresses"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %s: number of addresses.
+#: includes/class-importer.php:93
+msgid "%s deny-list address"
+msgid_plural "%s deny-list addresses"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %s: number of entries.
+#: includes/class-importer.php:98
+msgid "%s entry"
+msgid_plural "%s entries"
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/class-importer.php:106
+msgid "Import failed: the settings could not be saved, so no addresses were added. Try again."
 msgstr ""
 
 #: includes/class-limit-login.php:100
 msgid "Too many failed attempts. Please try again later."
 msgstr ""
 
-#. translators: 1: IP, 2: attempts.
-#: includes/class-limit-login.php:220
-msgid "IP %1$s locked out after %2$d failed attempts"
-msgstr ""
+#. translators: 1: IP address, 2: number of failed attempts.
+#: includes/class-limit-login.php:228
+msgid "IP %1$s locked out after %2$s failed attempt"
+msgid_plural "IP %1$s locked out after %2$s failed attempts"
+msgstr[0] ""
+msgstr[1] ""
 
 #. translators: %s: username.
-#: includes/class-limit-login.php:222
+#: includes/class-limit-login.php:230
 msgid "Failed login for \"%s\""
 msgstr ""
 
@@ -361,6 +416,10 @@ msgstr ""
 
 #: includes/class-privacy.php:97
 msgid "Backup codes remaining"
+msgstr ""
+
+#: includes/class-privacy.php:109
+msgid "Passkey"
 msgstr ""
 
 #. translators: 1: passkey label, 2: created date, 3: last-used date
@@ -388,6 +447,42 @@ msgstr ""
 msgid "Two-factor enrolment and lockout history removed. The user can log in with their password and re-enrol."
 msgstr ""
 
+#: includes/class-pro-pointer.php:145
+msgid "Upgrade to Pro"
+msgstr ""
+
+#: includes/class-pro-pointer.php:159
+msgid "Need 2FA enforced by role, trusted devices and alerts?"
+msgstr ""
+
+#: includes/class-pro-pointer.php:161
+msgid "See Dragon Login Security Pro"
+msgstr ""
+
+#: includes/class-pro-pointer.php:175
+msgid "Dragon Login Security is doing its job."
+msgstr ""
+
+#: includes/class-pro-pointer.php:176
+msgid "Dragon Login Security Pro adds two-factor enforcement by role, trusted devices, risk-based re-challenge with alerts, compliance reports and WooCommerce customer 2FA."
+msgstr ""
+
+#: includes/class-pro-pointer.php:179
+msgid "See what Pro adds"
+msgstr ""
+
+#: includes/class-pro-pointer.php:180
+msgid "Not now"
+msgstr ""
+
+#: includes/class-pro-pointer.php:181
+msgid "No thanks"
+msgstr ""
+
+#: includes/class-pro-pointer.php:192
+msgid "You are not allowed to do that."
+msgstr ""
+
 #: includes/class-two-factor.php:76
 msgid "Two-factor authentication is required for this account. Create an application password for programmatic access."
 msgstr ""
@@ -396,17 +491,21 @@ msgstr ""
 msgid "Authenticator secret could not be decrypted and was cleared."
 msgstr ""
 
+#: includes/class-two-factor.php:247
+msgid "Invalid code."
+msgstr ""
+
 #: includes/class-two-factor.php:254
 msgid "That code was not correct. Please try again."
 msgstr ""
 
 #. translators: %s: username.
-#: includes/class-two-factor.php:353
+#: includes/class-two-factor.php:349
 msgid "Two-factor passed: %s"
 msgstr ""
 
 #. translators: %s: username.
-#: includes/class-two-factor.php:355
+#: includes/class-two-factor.php:351
 msgid "Two-factor failed: %s"
 msgstr ""
 
@@ -427,5 +526,5 @@ msgid "Could not add passkey."
 msgstr ""
 
 #: includes/class-user-profile.php:50
-msgid "Save these codes now — each works once and they will not be shown again."
+msgid "Save these codes now - each works once and they will not be shown again."
 msgstr ""

@@ -95,7 +95,7 @@ class Privacy {
 		);
 		$items[]  = array(
 			'name'  => __( 'Backup codes remaining', 'dragon-login-security' ),
-			'value' => (string) count( array_filter( $codes ) ),
+			'value' => number_format_i18n( count( array_filter( $codes ) ) ),
 		);
 
 		global $wpdb;
@@ -111,8 +111,8 @@ class Privacy {
 					/* translators: 1: passkey label, 2: created date, 3: last-used date */
 					__( '%1$s (registered %2$s, last used %3$s)', 'dragon-login-security' ),
 					'' !== (string) $row['label'] ? (string) $row['label'] : __( 'unnamed device', 'dragon-login-security' ),
-					(string) $row['created_at'],
-					(string) ( $row['last_used_at'] ?? __( 'never', 'dragon-login-security' ) )
+					self::format_date( (string) $row['created_at'] ),
+					empty( $row['last_used_at'] ) ? __( 'never', 'dragon-login-security' ) : self::format_date( (string) $row['last_used_at'] )
 				),
 			);
 		}
@@ -123,7 +123,7 @@ class Privacy {
 		);
 		$items[]  = array(
 			'name'  => __( 'Failed-login records referencing this username', 'dragon-login-security' ),
-			'value' => (string) $lockouts,
+			'value' => number_format_i18n( $lockouts ),
 		);
 
 		return array(
@@ -177,5 +177,16 @@ class Privacy {
 				: array(),
 			'done'           => true,
 		);
+	}
+
+	/**
+	 * Site-format date for a stored UTC datetime.
+	 *
+	 * @param string $utc MySQL datetime in UTC.
+	 * @return string
+	 */
+	private static function format_date( string $utc ): string {
+		$ts = strtotime( $utc . ' UTC' );
+		return false === $ts ? $utc : wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $ts );
 	}
 }

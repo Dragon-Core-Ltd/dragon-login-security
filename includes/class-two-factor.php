@@ -244,7 +244,7 @@ class Two_Factor {
 		// re-challenge with a fresh token.
 
 		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Intentionally firing WordPress core's own wp_login_failed action so brute-force protection (core and other plugins) counts the failed 2FA step.
-		do_action( 'wp_login_failed', $user->user_login, new \WP_Error( 'dragonloginsecurity_2fa_failed', 'Invalid code.' ) );
+		do_action( 'wp_login_failed', $user->user_login, new \WP_Error( 'dragonloginsecurity_2fa_failed', __( 'Invalid code.', 'dragon-login-security' ) ) );
 		$this->emit( '2fa.failed', $user );
 		$this->render_challenge(
 			$user,

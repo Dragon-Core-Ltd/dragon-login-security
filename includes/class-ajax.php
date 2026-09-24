@@ -154,6 +154,16 @@ class Ajax {
 	}
 
 	/**
+	 * Name given to a passkey registered without a label.
+	 *
+	 * @return string
+	 */
+	private static function default_passkey_label(): string {
+		/* translators: %s: date the passkey was added. */
+		return sprintf( __( 'Passkey (%s)', 'dragon-login-security' ), wp_date( get_option( 'date_format' ) ) );
+	}
+
+	/**
 	 * Verify + store a passkey registration.
 	 */
 	public function passkey_register(): void {
@@ -170,7 +180,7 @@ class Ajax {
 		}
 
 		$transports = isset( $_POST['transports'] ) ? sanitize_text_field( wp_unslash( $_POST['transports'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in guard().
-		$row_id     = Credentials::add( $user_id, $cred['credential_id'], $cred['public_key'], $cred['sign_count'], $transports, '' === $label ? __( 'Passkey', 'dragon-login-security' ) : $label );
+		$row_id     = Credentials::add( $user_id, $cred['credential_id'], $cred['public_key'], $cred['sign_count'], $transports, '' === $label ? self::default_passkey_label() : $label );
 		if ( 0 === $row_id ) {
 			wp_send_json_error( array( 'message' => __( 'The passkey could not be saved. Try again.', 'dragon-login-security' ) ) );
 		}

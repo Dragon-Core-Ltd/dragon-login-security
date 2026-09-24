@@ -81,11 +81,23 @@ class Importer {
 			$notice = array(
 				'type'    => 'success',
 				'message' => sprintf(
-					/* translators: 1: allow-list count, 2: deny-list count, 3: skipped count */
-					__( 'Import finished: %1$d allow-list and %2$d deny-list addresses added; %3$d entries skipped (ranges or invalid).', 'dragon-login-security' ),
-					$result['allow'],
-					$result['deny'],
-					$result['skipped']
+					/* translators: 1: allow-list additions, e.g. "3 allow-list addresses", 2: deny-list additions, e.g. "2 deny-list addresses", 3: skipped entries, e.g. "1 entry". */
+					__( 'Import finished: %1$s and %2$s added; %3$s skipped (ranges or invalid).', 'dragon-login-security' ),
+					sprintf(
+						/* translators: %s: number of addresses. */
+						_n( '%s allow-list address', '%s allow-list addresses', (int) $result['allow'], 'dragon-login-security' ),
+						number_format_i18n( (int) $result['allow'] )
+					),
+					sprintf(
+						/* translators: %s: number of addresses. */
+						_n( '%s deny-list address', '%s deny-list addresses', (int) $result['deny'], 'dragon-login-security' ),
+						number_format_i18n( (int) $result['deny'] )
+					),
+					sprintf(
+						/* translators: %s: number of entries. */
+						_n( '%s entry', '%s entries', (int) $result['skipped'], 'dragon-login-security' ),
+						number_format_i18n( (int) $result['skipped'] )
+					)
 				),
 			);
 		} else {

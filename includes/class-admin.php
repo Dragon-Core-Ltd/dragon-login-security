@@ -43,10 +43,10 @@ class Admin {
 		echo '<div class="notice notice-error"><p>';
 		echo esc_html(
 			sprintf(
-				/* translators: 1: comma-separated table names, 2: UTC date and time of the last attempt */
+				/* translators: 1: list of table names, 2: UTC date and time of the last attempt */
 				__( 'Dragon Login Security could not create its database tables (%1$s; last attempt %2$s UTC). Check that the database user has the CREATE privilege, then deactivate and reactivate the plugin to retry.', 'dragon-login-security' ),
-				implode( ', ', array_map( 'strval', (array) $failure['tables'] ) ),
-				gmdate( 'Y-m-d H:i', (int) ( $failure['time'] ?? 0 ) )
+				implode( wp_get_list_item_separator(), array_map( 'strval', (array) $failure['tables'] ) ),
+				wp_date( 'Y-m-d H:i', (int) ( $failure['time'] ?? 0 ), new \DateTimeZone( 'UTC' ) )
 			)
 		);
 		echo '</p></div>';

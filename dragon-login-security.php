@@ -88,3 +88,11 @@ function dragonloginsecurity_init(): void {
 	Plugin::get_instance();
 }
 add_action( 'plugins_loaded', __NAMESPACE__ . '\dragonloginsecurity_init' );
+
+/**
+ * Load bundled translations.
+ */
+function dragonloginsecurity_load_textdomain(): void {
+	load_plugin_textdomain( 'dragon-login-security', false, dirname( DRAGONLOGINSECURITY_PLUGIN_BASENAME ) . '/languages' );
+}
+add_action( 'init', __NAMESPACE__ . '\dragonloginsecurity_load_textdomain', 1 );

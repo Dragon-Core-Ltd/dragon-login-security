@@ -24,6 +24,10 @@ class Integration {
 	 */
 	public function __construct() {
 		add_action( 'dragonloginsecurity_login_event', array( $this, 'forward' ), 10, 2 );
+		// Activity Log 1.0.x before the 2026-08 prefix rename fired dal_register_event;
+		// current versions fire dragonactivitylog_register_event. Only one of them
+		// ever runs, and register() is idempotent, so listening to both is safe.
+		add_filter( 'dragonactivitylog_register_event', array( $this, 'register' ) );
 		add_filter( 'dal_register_event', array( $this, 'register' ) );
 	}
 
@@ -50,14 +54,21 @@ class Integration {
 
 	/**
 	 * Register our event codes with Activity Log's registry (only ever called
-	 * when Activity Log is present).
+	 * when Activity Log is present). Codes Activity Log already defines keep
+	 * its own definition.
 	 *
 	 * @param array $events Existing registry.
 	 * @return array
 	 */
 	public function register( array $events ): array {
+		// Our labels are translated; Activity Log rebuilds its registry after init.
+		if ( ! did_action( 'init' ) ) {
+			return $events;
+		}
 		foreach ( Events::codes() as $code => $def ) {
-			$events[ $code ] = $def;
+			if ( ! isset( $events[ $code ] ) ) {
+				$events[ $code ] = $def;
+			}
 		}
 		return $events;
 	}

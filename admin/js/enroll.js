@@ -39,10 +39,9 @@
 				post( 'dragonloginsecurity_passkey_register', {
 					client_data: bufToB64( cred.response.clientDataJSON ),
 					attestation: bufToB64( cred.response.attestationObject ),
-					transports: transports,
-					label: 'Passkey (' + new Date().toLocaleDateString() + ')'
+					transports: transports
 				} ).done( function ( r ) {
-					if ( r.success ) { window.location.reload(); } else { window.alert( r.data.message ); }
+					if ( r.success ) { window.location.reload(); } else { window.alert( r.data && r.data.message ? r.data.message : dlsEnroll.i18n.passkeyError ); }
 				} );
 			} ).catch( function () { window.alert( dlsEnroll.i18n.passkeyError ); } );
 		} );

@@ -37,7 +37,7 @@ login_header( __( 'Two-Factor Authentication', 'dragon-login-security' ) );
 				<?php esc_html_e( 'Use a passkey', 'dragon-login-security' ); ?>
 			</button>
 		</p>
-		<p style="text-align:center;color:#646970;"><?php esc_html_e( '— or —', 'dragon-login-security' ); ?></p>
+		<p style="text-align:center;color:#646970;"><?php esc_html_e( '- or -', 'dragon-login-security' ); ?></p>
 		<!-- WebAuthn assertion fields, filled by JS -->
 		<input type="hidden" name="dragonloginsecurity_wa_token" id="dragonloginsecurity_wa_token" value="<?php echo esc_attr( $dragonloginsecurity_c['wa_args']['token'] ); ?>">
 		<input type="hidden" name="dragonloginsecurity_wa_id" id="dragonloginsecurity_wa_id" value="">

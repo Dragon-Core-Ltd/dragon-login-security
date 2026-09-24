@@ -224,8 +224,8 @@ class Limit_Login {
 				'object_name' => $username,
 				'source_ip'   => $ip,
 				'message'     => 'user.lockout' === $code
-					/* translators: 1: IP, 2: attempts. */
-					? sprintf( __( 'IP %1$s locked out after %2$d failed attempts', 'dragon-login-security' ), $ip, $count )
+					/* translators: 1: IP address, 2: number of failed attempts. */
+					? sprintf( _n( 'IP %1$s locked out after %2$s failed attempt', 'IP %1$s locked out after %2$s failed attempts', $count, 'dragon-login-security' ), $ip, number_format_i18n( $count ) )
 					/* translators: %s: username. */
 					: sprintf( __( 'Failed login for "%s"', 'dragon-login-security' ), $username ),
 			)
