@@ -4,7 +4,7 @@ Tags: two factor, 2fa, passkeys, login security, brute force
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.0.13
+Stable tag: 1.0.14
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -69,6 +69,15 @@ made to that service.
 
 == Changelog ==
 
+= 1.0.14 =
+* Security: two-factor sign-in is enforced on every sign-in path, including XML-RPC and logins from front-end forms such as the WooCommerce account page.
+* Security: failed sign-ins are counted per address and account, so a successful sign-in no longer resets another account's lockout count.
+* Fixed: adding a passkey and signing in with a passkey work again.
+* Fixed: the backup-code option on the sign-in challenge works for users without a passkey.
+* The session-expiry sign-in pop-up goes through the second factor.
+* On multisite, users whose passkey lives on another site are shown where to sign in.
+* The plugin package no longer includes development tools.
+
 = 1.0.13 =
 * Fixed: Login Security events are registered with current versions of Dragon Activity Log again.
 * Every screen, email and alert is now translatable, and translations bundled in the plugin's languages folder now load. Counts use proper plural forms, and numbers and dates follow your site's language.
@@ -128,6 +137,9 @@ made to that service.
 * Initial release.
 
 == Upgrade Notice ==
+
+= 1.0.14 =
+Security update: two-factor sign-in is now enforced on every sign-in path. Please update.
 
 = 1.0.13 =
 Fixed: login events reach Dragon Activity Log again.
