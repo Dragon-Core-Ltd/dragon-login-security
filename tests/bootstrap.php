@@ -210,6 +210,74 @@ if ( ! function_exists( 'get_current_blog_id' ) ) {
 		return (int) $GLOBALS['dls_test_current_blog'];
 	}
 }
+
+/*
+ * switch_to_blog(): dls_test_options / dls_test_transients always hold the
+ * CURRENT site's values; the other sites' options live in dls_test_blog_options
+ * (which get_blog_option() reads) and their transients in
+ * dls_test_blog_transients, swapped on each switch as core's per-blog option
+ * and (non-site) transient storage is. The table prefix follows the site:
+ * base_prefix for the main site, base_prefix . "<id>_" for the others.
+ */
+$GLOBALS['dls_test_blog_stack']      = array();
+$GLOBALS['dls_test_blog_transients'] = array();
+$GLOBALS['dls_test_network_active']  = array();
+if ( ! function_exists( 'dls_test_set_blog' ) ) {
+	function dls_test_set_blog( int $id ): void {
+		global $wpdb;
+		$current = (int) $GLOBALS['dls_test_current_blog'];
+
+		$GLOBALS['dls_test_blog_options'][ $current ]    = $GLOBALS['dls_test_options'];
+		$GLOBALS['dls_test_blog_transients'][ $current ] = $GLOBALS['dls_test_transients'];
+
+		$GLOBALS['dls_test_options']      = $GLOBALS['dls_test_blog_options'][ $id ] ?? array();
+		$GLOBALS['dls_test_transients']   = $GLOBALS['dls_test_blog_transients'][ $id ] ?? array();
+		$GLOBALS['dls_test_current_blog'] = $id;
+
+		if ( is_object( $wpdb ) && isset( $wpdb->base_prefix ) ) {
+			$wpdb->prefix = 1 === $id ? $wpdb->base_prefix : $wpdb->base_prefix . $id . '_';
+		}
+	}
+}
+if ( ! function_exists( 'switch_to_blog' ) ) {
+	// Core pushes the previous site even when switching to the current one.
+	function switch_to_blog( $new_blog_id, $deprecated = null ) {
+		unset( $deprecated );
+		$GLOBALS['dls_test_blog_stack'][] = get_current_blog_id();
+		dls_test_set_blog( (int) $new_blog_id );
+		return true;
+	}
+}
+if ( ! function_exists( 'restore_current_blog' ) ) {
+	// Core answers false when there is nothing to restore.
+	function restore_current_blog() {
+		if ( empty( $GLOBALS['dls_test_blog_stack'] ) ) {
+			return false;
+		}
+		dls_test_set_blog( (int) array_pop( $GLOBALS['dls_test_blog_stack'] ) );
+		return true;
+	}
+}
+if ( ! function_exists( 'is_plugin_active_for_network' ) ) {
+	// Core: always false on a single site.
+	function is_plugin_active_for_network( $plugin ) {
+		return is_multisite() && in_array( $plugin, $GLOBALS['dls_test_network_active'], true );
+	}
+}
+if ( ! class_exists( 'WP_Site' ) ) {
+	// Core's WP_Site keeps blog_id as a numeric string.
+	final class WP_Site {
+		public $blog_id = '0';
+
+		public function __construct( $site ) {
+			foreach ( get_object_vars( $site ) as $key => $value ) {
+				$this->$key = $value;
+			}
+		}
+	}
+}
+defined( 'DRAGONLOGINSECURITY_PLUGIN_BASENAME' ) || define( 'DRAGONLOGINSECURITY_PLUGIN_BASENAME', 'dragon-login-security/dragon-login-security.php' );
+
 if ( ! function_exists( 'get_main_site_id' ) ) {
 	function get_main_site_id( $network_id = null ) {
 		unset( $network_id );

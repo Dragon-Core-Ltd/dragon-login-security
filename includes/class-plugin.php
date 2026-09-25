@@ -63,6 +63,12 @@ final class Plugin {
 		self::migrate_legacy_prefix();
 		add_action( 'init', array( __CLASS__, 'ensure_scheduled' ) );
 
+		// Install this site's tables on its first request if they are missing,
+		// before any login attempt is recorded (network sites that never ran
+		// activation), and give a new network site its tables when it is created.
+		add_action( 'init', array( $this, 'maybe_install_site' ), 1 );
+		add_action( 'wp_initialize_site', array( $this, 'install_new_site' ), 20 );
+
 		add_action( 'dragonloginsecurity_prune_lockouts', array( $this, 'prune_lockouts' ) );
 
 		// When a site is deleted on a network, drop its credential/lockout tables
@@ -113,6 +119,44 @@ final class Plugin {
 	 */
 	public function maybe_repair_schema(): void {
 		$this->create_tables();
+	}
+
+	/**
+	 * Create this site's tables if its schema version was never stamped.
+	 *
+	 * An installed site pays one autoloaded option read. Otherwise the attempt
+	 * is throttled by create_tables(), so a failing creation is not retried on
+	 * every request.
+	 */
+	public function maybe_install_site(): void {
+		if ( self::DB_VERSION === get_option( 'dragonloginsecurity_db_version' ) ) {
+			return;
+		}
+		$this->create_tables();
+	}
+
+	/**
+	 * Create the tables on a newly created network site when the plugin is
+	 * network-active. Runs after core has set up the site (priority 10).
+	 *
+	 * @param mixed $site The new site (WP_Site).
+	 */
+	public function install_new_site( $site ): void {
+		if ( ! ( $site instanceof \WP_Site ) ) {
+			return;
+		}
+		// Sites can be created from WP-CLI, REST or the front end, where the
+		// plugin admin API is not loaded yet.
+		if ( ! function_exists( 'is_plugin_active_for_network' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+		if ( ! is_plugin_active_for_network( DRAGONLOGINSECURITY_PLUGIN_BASENAME ) ) {
+			return;
+		}
+
+		switch_to_blog( (int) $site->blog_id );
+		$this->create_tables();
+		restore_current_blog();
 	}
 
 	/**
