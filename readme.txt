@@ -4,7 +4,7 @@ Tags: two factor, 2fa, passkeys, login security, brute force
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.0.14
+Stable tag: 1.0.15
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -68,6 +68,9 @@ made to that service.
 * lbuchs/webauthn (MIT) - https://github.com/lbuchs/WebAuthn - server-side WebAuthn (FIDO2) ceremony handling for passkeys.
 
 == Changelog ==
+
+= 1.0.15 =
+* On multisite, each site sets up its own tables when it is created or first used, so lockout history is kept on sites nobody has opened in wp-admin yet.
 
 = 1.0.14 =
 * Security: two-factor sign-in is enforced on every sign-in path, including XML-RPC and logins from front-end forms such as the WooCommerce account page.
@@ -137,6 +140,9 @@ made to that service.
 * Initial release.
 
 == Upgrade Notice ==
+
+= 1.0.15 =
+On multisite, each site sets up its tables when it is created or first used.
 
 = 1.0.14 =
 Security update: two-factor sign-in is now enforced on every sign-in path. Please update.
