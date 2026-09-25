@@ -87,9 +87,81 @@ class CookieHoldTest extends TestCase {
 		$this->assertTrue( $this->sign_in( new Two_Factor(), 2 )['send'] );
 	}
 
-	public function test_authenticate_outside_signon_does_not_hold(): void {
-		// A bare password check (no wp_signon) sets no cookies of its own.
-		$this->assertTrue( $this->sign_in( new Two_Factor(), 1, false )['send'] );
+	public function test_cookie_issued_outside_signon_is_refused_for_a_2fa_user(): void {
+		// A form that calls wp_set_auth_cookie() directly (a password reset that
+		// signs the user in) never passed the second factor.
+		$tf     = new Two_Factor();
+		$signed = $this->sign_in( $tf, 1, false );
+		$this->assertFalse( $signed['send'] );
+		$this->assertFalse( \WP_Session_Tokens::get_instance( 1 )->verify( $signed['token'] ), 'the session it created survived' );
+		// A user without a second factor is unaffected.
+		$this->assertTrue( $this->sign_in( $tf, 2, false )['send'] );
+	}
+
+	public function test_password_reset_then_cookie_is_refused(): void {
+		$tf = new Two_Factor();
+		$tf->on_password_reset( get_userdata( 1 ) );
+		$token = \WP_Session_Tokens::get_instance( 1 )->create( time() + 3600 );
+		$this->assertFalse( $tf->filter_send_auth_cookies( true, 0, time() + 3600, 1, 'auth', $token ) );
+		$this->assertSame( array(), \WP_Session_Tokens::get_instance( 1 )->get_all() );
+		// Even a cleared sign-in in the same request does not survive a reset.
+		$tf2 = new Two_Factor();
+		$GLOBALS['dls_test_filter_override']['dragonloginsecurity_should_challenge'] = static function () {
+			return false;
+		};
+		$this->assertTrue( $this->sign_in( $tf2, 1 )['send'] );
+		$tf2->on_password_reset( get_userdata( 1 ) );
+		$this->assertFalse( $tf2->filter_send_auth_cookies( true, 0, 0, 1, 'auth', 'x' ) );
+	}
+
+	public function test_renewing_the_requests_own_session_is_allowed(): void {
+		// The profile screen re-issues the cookie for the session the request
+		// already carries when the user changes their password.
+		$token = \WP_Session_Tokens::get_instance( 1 )->create( time() + 3600 );
+		foreach ( $GLOBALS['dls_test_sessions'][1] as &$session ) {
+			$session['login'] = time() - 60;
+		}
+		unset( $session );
+		$_COOKIE[ LOGGED_IN_COOKIE ] = 'owner|' . ( time() + 3600 ) . '|' . $token . '|hmac';
+		try {
+			$tf = new Two_Factor();
+			$this->assertTrue( $tf->filter_send_auth_cookies( true, 0, 0, 1, 'auth', $token ) );
+			// A new session for the same user is not a renewal, and is removed.
+			$fresh = \WP_Session_Tokens::get_instance( 1 )->create( time() + 3600 );
+			$this->assertFalse( $tf->filter_send_auth_cookies( true, 0, 0, 1, 'auth', $fresh ) );
+			$this->assertFalse( \WP_Session_Tokens::get_instance( 1 )->verify( $fresh ) );
+			// A token the request's cookie does not name is not a renewal.
+			$this->assertFalse( $tf->filter_send_auth_cookies( true, 0, 0, 1, 'auth', 'gone' ) );
+			// A refusal never destroys a session from an earlier request.
+			$this->assertTrue( \WP_Session_Tokens::get_instance( 1 )->verify( $token ) );
+			// A plugin that removes the cookie from $_COOKIE when the auth
+			// cookies are cleared does not break the renewal.
+			$_COOKIE[ LOGGED_IN_COOKIE ] = 'owner|' . ( time() + 3600 ) . '|' . $token . '|hmac';
+			$tf2                         = new Two_Factor();
+			$tf2->remember_request_cookie();
+			unset( $_COOKIE[ LOGGED_IN_COOKIE ] );
+			$this->assertTrue( $tf2->filter_send_auth_cookies( true, 0, 0, 1, 'auth', $token ) );
+		} finally {
+			unset( $_COOKIE[ LOGGED_IN_COOKIE ] );
+		}
+	}
+
+	public function test_allow_filter_opens_the_gate(): void {
+		$GLOBALS['dls_test_filter_override']['dragonloginsecurity_allow_auth_cookie'] = static function ( $allow, $user_id ) {
+			return 1 === $user_id;
+		};
+		$this->assertTrue( ( new Two_Factor() )->filter_send_auth_cookies( true, 0, 0, 1, 'auth', 'x' ) );
+	}
+
+	public function test_hook_reads_the_token(): void {
+		( new Two_Factor() )->hook();
+		$args = array();
+		foreach ( $GLOBALS['dls_test_filters'] as $filter ) {
+			if ( is_array( $filter[1] ) ) {
+				$args[ $filter[0] . ':' . $filter[1][1] ] = $filter[3] ?? 1;
+			}
+		}
+		$this->assertSame( 6, $args['send_auth_cookies:filter_send_auth_cookies'] );
 	}
 
 	public function test_trusted_device_skip_keeps_cookies_and_asks_once(): void {

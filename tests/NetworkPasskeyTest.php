@@ -79,4 +79,32 @@ class NetworkPasskeyTest extends TestCase {
 		$this->assertFalse( ( new Two_Factor() )->user_has_2fa( 8 ) );
 		$this->assertTrue( Provider_Passkey::is_enrolled_on_network( 11 ) );
 	}
+
+	public function test_privacy_erasure_removes_passkeys_on_every_site(): void {
+		$GLOBALS['dls_test_users'] = array( 8 => new \WP_User( 8, 'netuser' ) );
+		$GLOBALS['dls_test_users'][8]->user_email = 'net@example.test';
+		$rows            = $GLOBALS['wpdb']->rows;
+		$GLOBALS['wpdb'] = new class() extends \DLS_Test_Wpdb {
+			public $deletes = array();
+			public function query( $q ) {
+				$this->deletes[] = $q;
+				return 0;
+			}
+		};
+		$GLOBALS['wpdb']->prefix = 'wp_2_';
+		$GLOBALS['wpdb']->rows   = $rows + array(
+			'wp_2_dls_lockouts' => array(),
+			'wp_3_dls_lockouts' => array(),
+		);
+
+		$result = ( new \DragonLoginSecurity\Privacy() )->erase( 'net@example.test' );
+
+		$this->assertTrue( $result['items_removed'] );
+		$this->assertFalse( Provider_Passkey::is_enrolled_on_network( 8 ) );
+		// Lockout history goes from every site's table too.
+		$this->assertSame(
+			array( 'DELETE FROM wp_2_dls_lockouts WHERE username = netuser', 'DELETE FROM wp_3_dls_lockouts WHERE username = netuser' ),
+			$GLOBALS['wpdb']->deletes
+		);
+	}
 }

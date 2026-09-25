@@ -47,6 +47,10 @@ No. Any modern device with a screen lock (Face ID, Touch ID, Windows Hello, Andr
 
 No. Renaming wp-login.php breaks REST and other login paths and offers little real protection, so it is intentionally not included.
 
+= Does it work with single sign-on, social login or magic-link plugins? =
+
+For accounts with two-factor enabled, no. A sign-in cookie is issued only after the second factor has passed, so plugins that sign users in directly (single sign-on, social login, magic links, or a password reset that logs the user in) are refused for those accounts, and the user signs in through the login form instead. Accounts without two-factor are not affected. The User Switching plugin is supported. Developers can allow a verified integration with the `dragonloginsecurity_allow_auth_cookie` filter, which receives `false` and the user ID; see the plugin documentation for an example.
+
 = Does it work with the Dragon Activity Log plugin? =
 
 Yes — when Activity Log is active, login and two-factor events are recorded in its tamper-evident audit. Dragon Login Security works fully without it.

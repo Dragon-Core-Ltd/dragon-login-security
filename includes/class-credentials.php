@@ -132,17 +132,17 @@ class Credentials {
 	 * from this site only on a single site.
 	 *
 	 * @param int $user_id User id.
+	 * @return int Rows deleted.
 	 */
-	public static function delete_for_user_on_network( int $user_id ): void {
+	public static function delete_for_user_on_network( int $user_id ): int {
 		global $wpdb;
-		if ( ! is_multisite() ) {
-			self::delete_for_user( $user_id );
-			return;
-		}
-		foreach ( self::network_tables() as $table ) {
+		$tables = is_multisite() ? self::network_tables() : array( Plugin::credentials_table() );
+		$count  = 0;
+		foreach ( $tables as $table ) {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Write to the plugin's custom tables.
-			$wpdb->delete( $table, array( 'user_id' => $user_id ), array( '%d' ) );
+			$count += (int) $wpdb->delete( $table, array( 'user_id' => $user_id ), array( '%d' ) );
 		}
+		return $count;
 	}
 
 	/**
@@ -151,11 +151,22 @@ class Credentials {
 	 * @return string[]
 	 */
 	private static function network_tables(): array {
+		return self::network_table_names( 'dls_credentials' );
+	}
+
+	/**
+	 * Every site's copy of one of this plugin's tables that exists on this
+	 * network.
+	 *
+	 * @param string $suffix Table basename without the site prefix.
+	 * @return string[]
+	 */
+	public static function network_table_names( string $suffix ): array {
 		global $wpdb;
 		$base = (string) $wpdb->base_prefix;
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema lookup; must be current so a newly enrolled site counts at once.
-		$found   = (array) $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $base ) . '%' . $wpdb->esc_like( 'dls_credentials' ) ) );
-		$pattern = '/^' . preg_quote( $base, '/' ) . '(?:[0-9]+_)?dls_credentials$/';
+		$found   = (array) $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $base ) . '%' . $wpdb->esc_like( $suffix ) ) );
+		$pattern = '/^' . preg_quote( $base, '/' ) . '(?:[0-9]+_)?' . preg_quote( $suffix, '/' ) . '$/';
 		return array_values(
 			array_filter(
 				$found,

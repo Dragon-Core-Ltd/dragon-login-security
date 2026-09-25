@@ -157,17 +157,21 @@ class Privacy {
 		}
 
 		$removed = false;
-		foreach ( array( 'dls_totp_secret', 'dls_totp_last_step', 'dls_backup_codes', 'dls_backup_codes_confirmed' ) as $key ) {
+		foreach ( array( 'dls_totp_secret', 'dls_totp_last_step', 'dls_backup_codes', 'dls_backup_codes_confirmed', Two_Factor::CODE_FAILURES_META ) as $key ) {
 			if ( delete_user_meta( $user->ID, $key ) ) {
 				$removed = true;
 			}
 		}
 
 		global $wpdb;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom tables; privacy erasure runs on demand.
-		$removed = (bool) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE user_id = %d', Plugin::credentials_table(), $user->ID ) ) || $removed;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom tables; privacy erasure runs on demand.
-		$removed = (bool) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE username = %s', Plugin::lockouts_table(), $user->user_login ) ) || $removed;
+		// Passkeys on any site of a network count as a factor everywhere, so they
+		// are erased from every site.
+		$removed  = Credentials::delete_for_user_on_network( (int) $user->ID ) > 0 || $removed;
+		$lockouts = is_multisite() ? Credentials::network_table_names( 'dls_lockouts' ) : array( Plugin::lockouts_table() );
+		foreach ( $lockouts as $table ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom tables; privacy erasure runs on demand.
+			$removed = (bool) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE username = %s', $table, $user->user_login ) ) || $removed;
+		}
 
 		return array(
 			'items_removed'  => $removed,

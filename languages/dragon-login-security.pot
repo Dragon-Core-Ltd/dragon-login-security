@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-25T04:24:16+00:00\n"
+"POT-Creation-Date: 2026-09-25T08:28:29+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: dragon-login-security\n"
@@ -213,7 +213,7 @@ msgid "Trusted proxy IPs / ranges (optional)"
 msgstr ""
 
 #: admin/views/settings.php:62
-msgid "One IP or CIDR range per line - your proxy / CDN addresses. When set, the client IP is the first X-Forwarded-For address that is not one of these. Leave empty if a single proxy sits in front (the rightmost forwarded address is used)."
+msgid "One IP or CIDR range per line - your proxy / CDN addresses. When set, forwarded headers are read only from requests that arrive from one of these addresses, and the client IP is the first X-Forwarded-For address that is not one of these. Leave empty if a single proxy sits in front (the rightmost forwarded address is used)."
 msgstr ""
 
 #: admin/views/settings.php:66
@@ -459,7 +459,7 @@ msgstr ""
 msgid "Login security"
 msgstr ""
 
-#: includes/class-privacy.php:176
+#: includes/class-privacy.php:180
 msgid "Two-factor enrolment and lockout history removed. The user can log in with their password and re-enrol."
 msgstr ""
 
@@ -499,33 +499,37 @@ msgstr ""
 msgid "You are not allowed to do that."
 msgstr ""
 
-#: includes/class-two-factor.php:326
+#: includes/class-two-factor.php:551
 msgid "Two-factor authentication is required for this account. Create an application password for programmatic access."
 msgstr ""
 
-#: includes/class-two-factor.php:356
+#: includes/class-two-factor.php:581
 msgid "Authenticator secret could not be decrypted and was cleared."
 msgstr ""
 
-#: includes/class-two-factor.php:580
+#: includes/class-two-factor.php:821
 msgid "You have logged in successfully."
 msgstr ""
 
-#: includes/class-two-factor.php:592
+#: includes/class-two-factor.php:835
 msgid "Invalid code."
 msgstr ""
 
-#: includes/class-two-factor.php:599
+#: includes/class-two-factor.php:847
 msgid "That code was not correct. Please try again."
 msgstr ""
 
+#: includes/class-two-factor.php:937
+msgid "Too many incorrect codes. Please try again later."
+msgstr ""
+
 #. translators: %s: username.
-#: includes/class-two-factor.php:700
+#: includes/class-two-factor.php:1037
 msgid "Two-factor passed: %s"
 msgstr ""
 
 #. translators: %s: username.
-#: includes/class-two-factor.php:702
+#: includes/class-two-factor.php:1039
 msgid "Two-factor failed: %s"
 msgstr ""
 

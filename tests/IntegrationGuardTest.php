@@ -10,6 +10,8 @@ namespace DragonLoginSecurity\Tests;
 use DragonLoginSecurity\Integration;
 use DragonLoginSecurity\Events;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\PreserveGlobalState;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass( Integration::class )]
@@ -72,5 +74,16 @@ class IntegrationGuardTest extends TestCase {
 			$this->assertCount( 3, $def );
 			$this->assertIsInt( $def[1] );
 		}
+	}
+
+	#[RunInSeparateProcess]
+	#[PreserveGlobalState( false )]
+	public function test_failed_logins_are_not_forwarded_when_activity_log_records_them(): void {
+		// phpcs:ignore Squiz.PHP.Eval.Discouraged
+		eval( 'namespace DragonActivityLog; class Watch_Auth {} class Logger { public $codes = array(); public function record( $e ) { $this->codes[] = $e["event_code"]; } } class Plugin { public static $i; public $l; public static function get_instance() { if ( ! self::$i ) { self::$i = new self(); self::$i->l = new Logger(); } return self::$i; } public function logger() { return $this->l; } }' );
+		$i = new Integration();
+		$i->forward( 'user.login_failed', array( 'object_name' => 'admin' ) );
+		$i->forward( 'user.lockout', array( 'object_name' => 'admin' ) );
+		$this->assertSame( array( 'user.lockout' ), \DragonActivityLog\Plugin::get_instance()->logger()->codes );
 	}
 }

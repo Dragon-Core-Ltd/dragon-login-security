@@ -57,6 +57,6 @@ if ( is_multisite() ) {
 }
 
 // Per-user 2FA meta is global (one row per user regardless of site).
-foreach ( array( 'dls_totp_secret', 'dls_backup_codes', 'dls_2fa_methods', 'dls_backup_codes_confirmed', 'dls_totp_last_step' ) as $dragonloginsecurity_meta ) {
+foreach ( array( 'dls_totp_secret', 'dls_backup_codes', 'dls_2fa_methods', 'dls_backup_codes_confirmed', 'dls_totp_last_step', 'dls_2fa_failures' ) as $dragonloginsecurity_meta ) {
 	delete_metadata( 'user', 0, $dragonloginsecurity_meta, '', true );
 }

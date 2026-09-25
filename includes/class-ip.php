@@ -22,14 +22,16 @@ class IP {
 	 * Get the client IP for the current request.
 	 *
 	 * REMOTE_ADDR is the only value trusted by default. Proxy headers are
-	 * client-spoofable, so they are consulted only when `trust_proxy` is enabled
-	 * — and even then the header is resolved safely: the X-Forwarded-For chain is
-	 * walked from the RIGHT (the hop closest to the server), skipping configured
-	 * trusted-proxy ranges, so the first non-trusted hop is the real client. The
-	 * leftmost value is attacker-controlled and is never taken blindly (doing so
-	 * let an attacker rotate it to dodge lockouts, spoof an allow-listed IP, or
-	 * pin failures on a third party). HTTP_CLIENT_IP is dropped entirely — it is
-	 * trivially spoofable and effectively never set by a real proxy.
+	 * client-spoofable, so they are consulted only when `trust_proxy` is enabled.
+	 * With trusted-proxy ranges configured, the headers are read only when
+	 * REMOTE_ADDR is one of those proxies (a direct connection keeps its own
+	 * address), and the X-Forwarded-For chain, with REMOTE_ADDR as its last hop,
+	 * is walked from the right past every trusted hop: the first untrusted hop
+	 * is the client. The walk stops at a malformed hop and falls back to the
+	 * last trusted one. X-Real-IP is used only when X-Forwarded-For is absent,
+	 * under the same REMOTE_ADDR check. With no ranges configured, a single
+	 * proxy is assumed and its rightmost forwarded address is used.
+	 * HTTP_CLIENT_IP is never read.
 	 *
 	 * @return string Empty string when none resolvable.
 	 */
@@ -44,48 +46,38 @@ class IP {
 			return $remote;
 		}
 
-		// Build the forwarded chain (client, proxy1, proxy2, ...) from valid IPs.
-		$chain = array();
-		if ( ! empty( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) {
-			$xff = sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_FORWARDED_FOR'] ) );
-			foreach ( explode( ',', $xff ) as $hop ) {
-				$hop = trim( $hop, " \t[]" );
-				if ( filter_var( $hop, FILTER_VALIDATE_IP ) ) {
-					$chain[] = $hop;
-				}
-			}
-		}
-
-		// X-Real-IP is a single value set by nginx; use it if there is no XFF.
-		if ( empty( $chain ) && ! empty( $_SERVER['HTTP_X_REAL_IP'] ) ) {
-			$real = sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_REAL_IP'] ) );
-			if ( filter_var( $real, FILTER_VALIDATE_IP ) ) {
-				return $real;
-			}
-		}
-
-		if ( empty( $chain ) ) {
+		$trusted = self::trusted_proxies();
+		if ( ! empty( $trusted ) && ( '' === $remote || ! self::ip_in_ranges( $remote, $trusted ) ) ) {
 			return $remote;
 		}
 
-		$trusted = self::trusted_proxies();
-
-		// With no configured trusted proxies, assume a single trusted proxy in
-		// front (the common CDN/LB case): the rightmost XFF entry is the address
-		// that proxy observed, i.e. the real client.
-		if ( empty( $trusted ) ) {
-			return end( $chain );
+		$hops = array();
+		if ( ! empty( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) {
+			$xff = sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_FORWARDED_FOR'] ) );
+			foreach ( explode( ',', $xff ) as $hop ) {
+				$hops[] = trim( $hop, " \t[]" );
+			}
+		} elseif ( ! empty( $_SERVER['HTTP_X_REAL_IP'] ) ) {
+			$hops[] = trim( sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_REAL_IP'] ) ), " \t[]" );
 		}
 
-		// Otherwise walk right-to-left; the first hop not in a trusted range is
-		// the client. If every hop is trusted, fall back to the leftmost.
-		for ( $i = count( $chain ) - 1; $i >= 0; $i-- ) {
-			if ( ! self::ip_in_ranges( $chain[ $i ], $trusted ) ) {
-				return $chain[ $i ];
+		if ( empty( $trusted ) ) {
+			// One proxy assumed: the address it observed is the rightmost hop.
+			$last = end( $hops );
+			return ( false !== $last && filter_var( $last, FILTER_VALIDATE_IP ) ) ? $last : $remote;
+		}
+
+		$client = $remote;
+		for ( $i = count( $hops ) - 1; $i >= 0; $i-- ) {
+			if ( ! filter_var( $hops[ $i ], FILTER_VALIDATE_IP ) ) {
+				return $client;
+			}
+			$client = $hops[ $i ];
+			if ( ! self::ip_in_ranges( $client, $trusted ) ) {
+				return $client;
 			}
 		}
-
-		return $chain[0];
+		return $client;
 	}
 
 	/**

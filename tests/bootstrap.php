@@ -608,8 +608,16 @@ if ( ! class_exists( 'WP_Session_Tokens' ) ) {
 		}
 		public function create( $expiration ) {
 			$token = bin2hex( random_bytes( 21 ) );
-			$GLOBALS['dls_test_sessions'][ $this->user_id ][ $this->hash_token( $token ) ] = array( 'expiration' => (int) $expiration );
+			// Core stores expiration, IP, user agent and the creation time.
+			$GLOBALS['dls_test_sessions'][ $this->user_id ][ $this->hash_token( $token ) ] = array(
+				'expiration' => (int) $expiration,
+				'login'      => time(),
+			);
 			return $token;
+		}
+		public function get( $token ) {
+			$session = $GLOBALS['dls_test_sessions'][ $this->user_id ][ $this->hash_token( $token ) ] ?? null;
+			return is_array( $session ) ? $session : null;
 		}
 		public function verify( $token ) {
 			$session = $GLOBALS['dls_test_sessions'][ $this->user_id ][ $this->hash_token( $token ) ] ?? null;
@@ -624,6 +632,28 @@ if ( ! class_exists( 'WP_Session_Tokens' ) ) {
 		public function get_all() {
 			return array_values( $GLOBALS['dls_test_sessions'][ $this->user_id ] ?? array() );
 		}
+	}
+}
+
+defined( 'LOGGED_IN_COOKIE' ) || define( 'LOGGED_IN_COOKIE', 'wordpress_logged_in_test' );
+if ( ! function_exists( 'wp_parse_auth_cookie' ) ) {
+	/**
+	 * Core's parser for the logged_in scheme: the request cookie split on "|"
+	 * into username, expiration, token and hmac; false when absent or malformed.
+	 */
+	function wp_parse_auth_cookie( $cookie = '', $scheme = '' ) {
+		if ( '' === $cookie ) {
+			if ( 'logged_in' !== $scheme || empty( $_COOKIE[ LOGGED_IN_COOKIE ] ) ) {
+				return false;
+			}
+			$cookie = $_COOKIE[ LOGGED_IN_COOKIE ];
+		}
+		$elements = explode( '|', (string) $cookie );
+		if ( 4 !== count( $elements ) ) {
+			return false;
+		}
+		list( $username, $expiration, $token, $hmac ) = $elements;
+		return compact( 'username', 'expiration', 'token', 'hmac', 'scheme' );
 	}
 }
 
@@ -787,5 +817,6 @@ require_once __DIR__ . '/../includes/providers/class-provider-passkey.php';
 require_once __DIR__ . '/../includes/class-two-factor.php';
 require_once __DIR__ . '/../includes/class-admin.php';
 require_once __DIR__ . '/../includes/class-importer.php';
+require_once __DIR__ . '/../includes/class-privacy.php';
 
 require_once __DIR__ . '/../includes/class-pro-pointer.php';

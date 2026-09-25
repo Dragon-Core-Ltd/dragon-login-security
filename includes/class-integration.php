@@ -43,6 +43,12 @@ class Integration {
 			return; // Login Security works fully; there is just no audit row.
 		}
 
+		// Activity Log records failed logins itself from core's wp_login_failed,
+		// once per username per request; forwarding ours would log each twice.
+		if ( 'user.login_failed' === $code && class_exists( '\\DragonActivityLog\\Watch_Auth' ) ) {
+			return;
+		}
+
 		$logger = \DragonActivityLog\Plugin::get_instance()->logger();
 		if ( ! is_object( $logger ) || ! method_exists( $logger, 'record' ) ) {
 			return;

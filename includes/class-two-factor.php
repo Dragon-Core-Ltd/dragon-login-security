@@ -67,6 +67,68 @@ class Two_Factor {
 	private array $issued_tokens = array();
 
 	/**
+	 * Users whose sign-in cookies may be sent in this request: the second factor
+	 * passed here, or the challenge was skipped by the should-challenge filter.
+	 *
+	 * @var array<int,bool>
+	 */
+	private array $cleared = array();
+
+	/**
+	 * Users whose password was reset in this request.
+	 *
+	 * @var array<int,bool>
+	 */
+	private array $reset_users = array();
+
+	/**
+	 * Whether handle_submit() is firing wp_login for a sign-in whose second
+	 * factor has just passed.
+	 *
+	 * @var bool
+	 */
+	private bool $completing = false;
+
+	/**
+	 * When this request started, as a Unix timestamp. Sessions created at or
+	 * after it were created by this request.
+	 *
+	 * @var int
+	 */
+	private int $request_start;
+
+	/**
+	 * The logged-in cookie this request arrived with, kept in case another
+	 * plugin removes it from $_COOKIE when the auth cookies are cleared.
+	 *
+	 * @var string
+	 */
+	private string $request_cookie = '';
+
+	/**
+	 * Per-user record of incorrect second-factor codes.
+	 */
+	const CODE_FAILURES_META = 'dls_2fa_failures';
+
+	/**
+	 * Incorrect codes a user may enter within the window before the second-factor
+	 * step is closed to them.
+	 */
+	const CODE_FAILURE_LIMIT = 5;
+
+	/**
+	 * How long the incorrect-code count lasts, in seconds.
+	 */
+	const CODE_FAILURE_WINDOW = 900;
+
+	/**
+	 * Constructor.
+	 */
+	public function __construct() {
+		$this->request_start = time();
+	}
+
+	/**
 	 * Register hooks.
 	 */
 	public function hook(): void {
@@ -74,6 +136,7 @@ class Two_Factor {
 		// Limit_Login::on_success (priority 10) clears the failure counter.
 		add_action( 'wp_login', array( $this, 'maybe_challenge' ), 5, 2 );
 		add_action( 'login_form_dragonloginsecurity_2fa', array( $this, 'handle_submit' ) );
+		add_filter( 'wp_login_errors', array( $this, 'code_lock_message' ), 10, 1 );
 
 		// Enforce 2FA at the authenticate stage too, so non-interactive credential
 		// paths (XML-RPC, REST with a real password) cannot skip the second factor
@@ -89,7 +152,9 @@ class Two_Factor {
 		// record the session tokens issued so the challenge can destroy them.
 		add_action( 'wp_authenticate', array( $this, 'note_signon' ), 10, 0 );
 		add_filter( 'authenticate', array( $this, 'hold_cookies_for_challenge' ), PHP_INT_MAX, 1 );
-		add_filter( 'send_auth_cookies', array( $this, 'filter_send_auth_cookies' ), PHP_INT_MAX, 4 );
+		add_filter( 'send_auth_cookies', array( $this, 'filter_send_auth_cookies' ), PHP_INT_MAX, 6 );
+		add_action( 'password_reset', array( $this, 'on_password_reset' ), 10, 1 );
+		add_action( 'clear_auth_cookie', array( $this, 'remember_request_cookie' ), PHP_INT_MIN, 0 );
 		add_action( 'set_auth_cookie', array( $this, 'record_session_token' ), 10, 6 );
 		add_action( 'set_logged_in_cookie', array( $this, 'record_session_token' ), 10, 6 );
 		add_action( 'shutdown', array( $this, 'destroy_unchallenged_sessions' ) );
@@ -118,26 +183,186 @@ class Two_Factor {
 		}
 		if ( $this->will_challenge( $user ) ) {
 			$this->held_user = (int) $user->ID;
+		} else {
+			$this->cleared[ (int) $user->ID ] = true;
 		}
 		return $user;
 	}
 
 	/**
-	 * Refuse to send the auth cookies of a sign-in awaiting its second factor.
-	 * Clearing cookies (user 0) and every other user's cookies are unaffected.
+	 * A password reset proves control of the mailbox, not the second factor, so
+	 * no auth cookie may follow it in the same request.
 	 *
-	 * @param bool $send       Whether to send the cookies.
-	 * @param int  $expire     Cookie expiry (unused).
-	 * @param int  $expiration Auth expiry (unused).
-	 * @param int  $user_id    User the cookies are for.
+	 * @param \WP_User|mixed $user User whose password was reset.
+	 */
+	public function on_password_reset( $user = null ): void {
+		if ( $user instanceof \WP_User ) {
+			$this->reset_users[ (int) $user->ID ] = true;
+			unset( $this->cleared[ (int) $user->ID ] );
+		}
+	}
+
+	/**
+	 * Decide whether auth cookies may be sent. For a user with a second factor
+	 * they are sent only when this request passed that factor, the
+	 * should-challenge filter skipped it at sign-in, or the cookie renews the
+	 * session this request already carries (a password change on the profile
+	 * screen). Any other issuer (for example a password-reset form that signs
+	 * the user in) is refused and the session it created is destroyed.
+	 * Clearing cookies (user 0) and users without a second factor are
+	 * unaffected.
+	 *
+	 * @param bool   $send       Whether to send the cookies.
+	 * @param int    $expire     Cookie expiry (unused).
+	 * @param int    $expiration Auth expiry (unused).
+	 * @param int    $user_id    User the cookies are for.
+	 * @param string $scheme     Cookie scheme (unused).
+	 * @param string $token      Session token behind the cookies.
 	 * @return bool
 	 */
-	public function filter_send_auth_cookies( $send, $expire = 0, $expiration = 0, $user_id = 0 ) {
-		unset( $expire, $expiration );
-		if ( $this->held_user > 0 && (int) $user_id === $this->held_user ) {
+	public function filter_send_auth_cookies( $send, $expire = 0, $expiration = 0, $user_id = 0, $scheme = '', $token = '' ) {
+		unset( $expire, $expiration, $scheme );
+		$user_id = (int) $user_id;
+		if ( ! $send || $user_id <= 0 ) {
+			return $send;
+		}
+		if ( $this->held_user > 0 && $user_id === $this->held_user ) {
 			return false;
 		}
-		return $send;
+		if ( ! $this->user_has_2fa( $user_id ) ) {
+			return $send;
+		}
+		$token = (string) $token;
+		if ( empty( $this->reset_users[ $user_id ] ) ) {
+			if ( ! empty( $this->cleared[ $user_id ] ) || $this->renews_request_session( $user_id, $token ) || self::user_switching_allows( $user_id, $this->request_cookie() ) ) {
+				return $send;
+			}
+			/**
+			 * Whether to send auth cookies issued for a user with a second factor
+			 * outside this plugin's sign-in flow (for example by a user-switching
+			 * tool). Default false: such cookies are refused.
+			 *
+			 * @param bool $allow   Whether to send the cookies.
+			 * @param int  $user_id User the cookies are for.
+			 */
+			if ( true === apply_filters( 'dragonloginsecurity_allow_auth_cookie', false, $user_id ) ) {
+				return $send;
+			}
+		}
+		$this->destroy_new_session( $user_id, $token );
+		return false;
+	}
+
+	/**
+	 * Whether a cookie for this token renews the session the request already
+	 * carries: the request's own logged-in cookie names the token and that
+	 * session is still stored for the user. The browser sent the token, so the
+	 * session existed before this request.
+	 *
+	 * @param int    $user_id User id.
+	 * @param string $token   Session token.
+	 * @return bool
+	 */
+	private function renews_request_session( int $user_id, string $token ): bool {
+		if ( '' === $token || ! function_exists( 'wp_parse_auth_cookie' ) || ! class_exists( '\WP_Session_Tokens' ) ) {
+			return false;
+		}
+		$raw = $this->request_cookie();
+		if ( '' === $raw ) {
+			return false;
+		}
+		$cookie = wp_parse_auth_cookie( $raw, 'logged_in' );
+		if ( ! is_array( $cookie ) || ! isset( $cookie['token'] ) || ! hash_equals( (string) $cookie['token'], $token ) ) {
+			return false;
+		}
+		return is_array( \WP_Session_Tokens::get_instance( $user_id )->get( $token ) );
+	}
+
+	/**
+	 * Keep the request's logged-in cookie before the auth cookies are cleared.
+	 */
+	public function remember_request_cookie(): void {
+		if ( '' === $this->request_cookie ) {
+			$this->request_cookie = self::live_request_cookie();
+		}
+	}
+
+	/**
+	 * The logged-in cookie this request arrived with, or ''.
+	 *
+	 * @return string
+	 */
+	private function request_cookie(): string {
+		$live = self::live_request_cookie();
+		return '' !== $live ? $live : $this->request_cookie;
+	}
+
+	/**
+	 * The logged-in cookie currently in $_COOKIE, or ''.
+	 *
+	 * @return string
+	 */
+	private static function live_request_cookie(): string {
+		if ( ! defined( 'LOGGED_IN_COOKIE' ) || ! isset( $_COOKIE[ LOGGED_IN_COOKIE ] ) || ! is_string( $_COOKIE[ LOGGED_IN_COOKIE ] ) ) {
+			return '';
+		}
+		return sanitize_text_field( wp_unslash( $_COOKIE[ LOGGED_IN_COOKIE ] ) );
+	}
+
+	/**
+	 * Whether the User Switching plugin is switching to this user on behalf of
+	 * someone already signed in: either a signed-in user who may switch to the
+	 * target, or a switch back to the user whose own sign-in cookie User
+	 * Switching kept.
+	 *
+	 * @param int    $user_id User the cookies are for.
+	 * @param string $cookie  The logged-in cookie the request arrived with.
+	 * @return bool
+	 */
+	public static function user_switching_allows( int $user_id, string $cookie ): bool {
+		if ( ! class_exists( '\\user_switching' ) || ! function_exists( 'switch_to_user' ) ) {
+			return false;
+		}
+
+		// Switching back: User Switching validates the original user's kept
+		// cookie, which is backed by a session from an earlier sign-in.
+		$old = function_exists( 'current_user_switched' ) ? current_user_switched() : false;
+		if ( ! ( $old instanceof \WP_User ) && is_callable( array( '\\user_switching', 'get_old_user' ) ) ) {
+			$old = \user_switching::get_old_user();
+		}
+		if ( $old instanceof \WP_User && (int) $old->ID === $user_id ) {
+			return true;
+		}
+
+		// Switching to: the request's own sign-in cookie names a live session
+		// of a user allowed to switch to the target.
+		if ( '' === $cookie || ! function_exists( 'wp_validate_auth_cookie' ) || ! function_exists( 'user_can' ) ) {
+			return false;
+		}
+		$switcher = (int) wp_validate_auth_cookie( $cookie, 'logged_in' );
+		return $switcher > 0 && $switcher !== $user_id && user_can( $switcher, 'switch_to_user', $user_id ); // phpcs:ignore WordPress.WP.Capabilities.Unknown -- User Switching's own meta capability.
+	}
+
+	/**
+	 * Destroy a session if this request created it. A session that existed
+	 * before the request is left alone.
+	 *
+	 * @param int    $user_id User id.
+	 * @param string $token   Session token.
+	 */
+	private function destroy_new_session( int $user_id, string $token ): void {
+		if ( '' === $token || ! class_exists( '\WP_Session_Tokens' ) ) {
+			return;
+		}
+		$cookie = wp_parse_auth_cookie( $this->request_cookie(), 'logged_in' );
+		if ( is_array( $cookie ) && isset( $cookie['token'] ) && hash_equals( (string) $cookie['token'], $token ) ) {
+			return; // The session the request arrived with.
+		}
+		$manager = \WP_Session_Tokens::get_instance( $user_id );
+		$session = $manager->get( $token );
+		if ( is_array( $session ) && ( ! isset( $session['login'] ) || (int) $session['login'] >= $this->request_start ) ) {
+			$manager->destroy( $token );
+		}
 	}
 
 	/**
@@ -402,6 +627,9 @@ class Two_Factor {
 	 * @param \WP_User $user       Authenticated user.
 	 */
 	public function maybe_challenge( string $user_login, $user = null ): void {
+		if ( $this->completing ) {
+			return; // wp_login fired again by handle_submit() once the factor passed.
+		}
 		if ( ! ( $user instanceof \WP_User ) || ! $this->user_has_2fa( $user->ID ) ) {
 			return; // No second factor: normal login proceeds.
 		}
@@ -425,6 +653,11 @@ class Two_Factor {
 		self::withdraw_queued_auth_cookies();
 		$this->destroy_issued_sessions( (int) $user->ID );
 		wp_clear_auth_cookie();
+
+		if ( $this->code_locked( (int) $user->ID ) ) {
+			wp_safe_redirect( self::code_locked_url() );
+			exit;
+		}
 
 		$on_login_screen = function_exists( 'login_header' );
 		$redirect        = self::requested_redirect( $on_login_screen );
@@ -554,16 +787,23 @@ class Two_Factor {
 			exit;
 		}
 
-		// The second-factor step shares the brute-force lockout, so a password
-		// holder cannot make unlimited code guesses here.
+		// The second-factor step shares the address lockout, and each account
+		// also has its own cap on incorrect codes, so neither a new address nor a
+		// new password sign-in buys more guesses.
 		$limit = new Limit_Login();
 		if ( $limit->is_locked( IP::current() ) ) {
 			wp_safe_redirect( wp_login_url() );
 			exit;
 		}
+		if ( $this->code_locked( $user_id ) ) {
+			wp_safe_redirect( self::code_locked_url() );
+			exit;
+		}
 
 		if ( $this->validate_factor( $user_id, $method ) ) {
 			$limit->clear_user( IP::current(), $user );
+			delete_user_meta( $user_id, self::CODE_FAILURES_META );
+			$this->cleared[ $user_id ] = true;
 			wp_set_auth_cookie( $user_id, $remember );
 			/**
 			 * Fires after a second factor is verified and the auth cookie is set.
@@ -574,6 +814,7 @@ class Two_Factor {
 			 */
 			do_action( 'dragonloginsecurity_2fa_passed', $user_id );
 			$this->emit( '2fa.passed', $user );
+			$this->fire_login( $user );
 			if ( $interim ) {
 				// The session-expiry popup closes itself on this success screen.
 				$GLOBALS['interim_login'] = 'success'; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- wp-login.php's own display flag for the session-expiry popup.
@@ -581,7 +822,9 @@ class Two_Factor {
 				login_footer();
 				exit;
 			}
-			wp_safe_redirect( $redirect );
+			/** This filter is documented in wp-login.php */
+			$redirect = (string) apply_filters( 'login_redirect', $redirect, $redirect, $user ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- WordPress core's own login_redirect filter, applied as wp-login.php does after a sign-in.
+			wp_safe_redirect( '' !== $redirect ? $redirect : admin_url() );
 			exit;
 		}
 
@@ -591,6 +834,11 @@ class Two_Factor {
 		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Intentionally firing WordPress core's own wp_login_failed action so brute-force protection (core and other plugins) counts the failed 2FA step.
 		do_action( 'wp_login_failed', $user->user_login, new \WP_Error( 'dragonloginsecurity_2fa_failed', __( 'Invalid code.', 'dragon-login-security' ) ) );
 		$this->emit( '2fa.failed', $user );
+		if ( ! $this->record_code_failure( $user_id ) || $this->code_locked( $user_id ) ) {
+			// Too many incorrect codes: the pending sign-in ends here.
+			wp_safe_redirect( self::code_locked_url() );
+			exit;
+		}
 		$this->render_challenge(
 			$user,
 			Login_Token::create( $user_id ),
@@ -600,6 +848,95 @@ class Two_Factor {
 			$interim
 		);
 		exit;
+	}
+
+	/**
+	 * Fire core's wp_login for a sign-in whose second factor has just passed,
+	 * so listeners after the challenge (audit logs, alerts, WooCommerce) see
+	 * it. The challenge does not run again for it.
+	 *
+	 * @param \WP_User $user The now fully-authenticated user.
+	 */
+	private function fire_login( \WP_User $user ): void {
+		$this->completing = true;
+		try {
+			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- WordPress core's own wp_login action, fired once the sign-in is complete.
+			do_action( 'wp_login', $user->user_login, $user );
+		} finally {
+			$this->completing = false;
+		}
+	}
+
+	/**
+	 * Whether a user has used up their incorrect second-factor codes. Fails
+	 * closed on an unreadable record.
+	 *
+	 * @param int $user_id User id.
+	 * @param int $now     Current time (0 for now).
+	 * @return bool
+	 */
+	public function code_locked( int $user_id, int $now = 0 ): bool {
+		$now    = $now > 0 ? $now : time();
+		$record = get_user_meta( $user_id, self::CODE_FAILURES_META, true );
+		if ( '' === $record || false === $record ) {
+			return false;
+		}
+		if ( ! is_array( $record ) || ! isset( $record['count'], $record['since'] ) ) {
+			return true;
+		}
+		if ( (int) $record['since'] + self::CODE_FAILURE_WINDOW <= $now ) {
+			return false;
+		}
+		return (int) $record['count'] >= self::CODE_FAILURE_LIMIT;
+	}
+
+	/**
+	 * Count an incorrect code against a user.
+	 *
+	 * @param int $user_id User id.
+	 * @param int $now     Current time (0 for now).
+	 * @return bool Whether the count was stored (false means treat as locked).
+	 */
+	public function record_code_failure( int $user_id, int $now = 0 ): bool {
+		$now    = $now > 0 ? $now : time();
+		$record = get_user_meta( $user_id, self::CODE_FAILURES_META, true );
+		if ( ! is_array( $record ) || ! isset( $record['count'], $record['since'] )
+			|| (int) $record['since'] + self::CODE_FAILURE_WINDOW <= $now ) {
+			$record = array(
+				'count' => 0,
+				'since' => $now,
+			);
+		}
+		$record = array(
+			'count' => (int) $record['count'] + 1,
+			'since' => (int) $record['since'],
+		);
+		update_user_meta( $user_id, self::CODE_FAILURES_META, $record );
+		$stored = get_user_meta( $user_id, self::CODE_FAILURES_META, true );
+		return is_array( $stored ) && (int) ( $stored['count'] ?? 0 ) === $record['count'];
+	}
+
+	/**
+	 * The login-screen address shown after too many incorrect codes.
+	 *
+	 * @return string
+	 */
+	private static function code_locked_url(): string {
+		return add_query_arg( 'dragonloginsecurity_2fa_locked', '1', wp_login_url() );
+	}
+
+	/**
+	 * Explain the incorrect-code lock on the login screen.
+	 *
+	 * @param \WP_Error|mixed $errors Login screen messages.
+	 * @return \WP_Error|mixed
+	 */
+	public function code_lock_message( $errors ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Display flag only.
+		if ( $errors instanceof \WP_Error && ! empty( $_GET['dragonloginsecurity_2fa_locked'] ) ) {
+			$errors->add( 'dragonloginsecurity_2fa_locked', __( 'Too many incorrect codes. Please try again later.', 'dragon-login-security' ) );
+		}
+		return $errors;
 	}
 
 	/**
