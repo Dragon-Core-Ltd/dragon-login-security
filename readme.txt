@@ -4,7 +4,7 @@ Tags: two factor, 2fa, passkeys, login security, brute force
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.0.15
+Stable tag: 1.0.16
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,16 @@ made to that service.
 
 == Changelog ==
 
+= 1.0.16 =
+* Security: a user with two-factor sign-in only receives a signed-in session after passing the second step, including after a WooCommerce password reset.
+* Security: forwarded visitor addresses are only trusted from your listed proxies. Behind a CDN and a load balancer, or nginx in front of Apache, the real visitor address is used; loopback and private addresses count as proxy hops. A warning names any public address sending forwarded headers from outside your list.
+* Security: each two-factor code is counted before it is checked, a sign-in link works once, and five wrong codes lock the second step for that account. The user is emailed, and a password reset lifts the lock.
+* Allow and deny lists accept CIDR ranges (IPv4 and IPv6). Invalid entries are refused and named instead of being dropped silently.
+* After a lockout ends, one mistyped password no longer locks the address again straight away; repeated lockouts still get longer.
+* Compatible with User Switching. Other plugins that sign users in directly (SSO, social login, magic links) are refused for two-factor accounts unless allowed with the new dragonloginsecurity_allow_auth_cookie filter.
+* wp_login now fires after the second step, so other plugins see two-factor sign-ins.
+* XML-RPC sign-in with the account password on a two-factor account now explains that an application password is needed.
+
 = 1.0.15 =
 * On multisite, each site sets up its own tables when it is created or first used, so lockout history is kept on sites nobody has opened in wp-admin yet.
 
@@ -152,6 +162,9 @@ made to that service.
 * Initial release.
 
 == Upgrade Notice ==
+
+= 1.0.16 =
+Security update: two-factor sign-in now also covers password resets. Please update.
 
 = 1.0.15 =
 On multisite, each site sets up its tables when it is created or first used.
