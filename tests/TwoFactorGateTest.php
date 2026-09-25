@@ -134,4 +134,34 @@ class TwoFactorGateTest extends TestCase {
 		$tf = new Two_Factor();
 		$this->assertInstanceOf( \WP_User::class, $this->pass( $tf, null, get_userdata( 1 ) ) );
 	}
+
+	public function test_xmlrpc_refusal_after_a_correct_password_says_why(): void {
+		$tf      = new Two_Factor();
+		$generic = new \IXR_Error( 403, 'Incorrect username or password.' );
+		$reply   = $tf->xmlrpc_login_error( $generic, new \WP_Error( 'dragonloginsecurity_2fa_required', 'x' ) );
+		$this->assertInstanceOf( \IXR_Error::class, $reply );
+		$this->assertSame( 403, $reply->code );
+		$this->assertStringContainsString( 'application password', $reply->message );
+		$this->assertStringNotContainsString( 'Incorrect', $reply->message );
+	}
+
+	public function test_xmlrpc_wrong_password_keeps_the_generic_reply(): void {
+		$tf      = new Two_Factor();
+		$generic = new \IXR_Error( 403, 'Incorrect username or password.' );
+		foreach ( array( 'incorrect_password', 'invalid_username', 'dragonloginsecurity_locked', 'login_prevented' ) as $code ) {
+			$this->assertSame( $generic, $tf->xmlrpc_login_error( $generic, new \WP_Error( $code ) ) );
+		}
+		$this->assertSame( $generic, $tf->xmlrpc_login_error( $generic, null ) );
+	}
+
+	public function test_xmlrpc_error_filter_is_registered(): void {
+		( new Two_Factor() )->hook();
+		$found = false;
+		foreach ( $GLOBALS['dls_test_filters'] as $filter ) {
+			if ( 'xmlrpc_login_error' === $filter[0] && 'xmlrpc_login_error' === $filter[1][1] ) {
+				$found = 2 === ( $filter[3] ?? 1 );
+			}
+		}
+		$this->assertTrue( $found );
+	}
 }

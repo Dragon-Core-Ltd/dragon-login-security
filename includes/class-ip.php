@@ -216,6 +216,51 @@ class IP {
 	}
 
 	/**
+	 * Whether an IP falls within any of the given CIDR/IP ranges. IPv4-mapped
+	 * IPv6 addresses (::ffff:a.b.c.d) match as their IPv4 address, and single
+	 * addresses match in any notation.
+	 *
+	 * @param string   $ip     IP address.
+	 * @param string[] $ranges CIDR ranges or bare IPs.
+	 * @return bool
+	 */
+	public static function in_ranges( string $ip, array $ranges ): bool {
+		return self::ip_in_ranges( $ip, $ranges );
+	}
+
+	/**
+	 * Validate one allow/deny/proxy list entry: a single IPv4 or IPv6 address,
+	 * or a CIDR range whose prefix fits the address family.
+	 *
+	 * @param string $entry Entry as typed.
+	 * @return string|null The trimmed entry, or null when it is not valid.
+	 */
+	public static function normalise_list_entry( string $entry ): ?string {
+		$entry = trim( $entry );
+		if ( '' === $entry ) {
+			return null;
+		}
+
+		if ( false === strpos( $entry, '/' ) ) {
+			return filter_var( $entry, FILTER_VALIDATE_IP ) ? $entry : null;
+		}
+
+		list( $subnet, $bits ) = explode( '/', $entry, 2 );
+		if ( '' === $bits || ! ctype_digit( $bits ) || strlen( $bits ) > 3 ) {
+			return null;
+		}
+		if ( filter_var( $subnet, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) ) {
+			$max = 32;
+		} elseif ( filter_var( $subnet, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) ) {
+			$max = 128;
+		} else {
+			return null;
+		}
+
+		return (int) $bits <= $max ? $subnet . '/' . (int) $bits : null;
+	}
+
+	/**
 	 * Whether an IP falls within any of the given CIDR/IP ranges.
 	 *
 	 * @param string   $ip     IP address.
@@ -223,8 +268,12 @@ class IP {
 	 * @return bool
 	 */
 	private static function ip_in_ranges( string $ip, array $ranges ): bool {
+		$ip_bin = self::pack( $ip );
+		if ( null === $ip_bin ) {
+			return false;
+		}
 		foreach ( $ranges as $range ) {
-			if ( self::ip_in_cidr( $ip, $range ) ) {
+			if ( self::ip_in_cidr( $ip_bin, (string) $range ) ) {
 				return true;
 			}
 		}
@@ -232,35 +281,69 @@ class IP {
 	}
 
 	/**
-	 * CIDR / bare-IP match for IPv4 and IPv6.
+	 * Packed binary form of an address, with an IPv4-mapped IPv6 address
+	 * reduced to its four IPv4 bytes.
 	 *
-	 * @param string $ip    IP address.
-	 * @param string $range CIDR range or bare IP.
+	 * @param string $ip IP address.
+	 * @return string|null Null when the address cannot be parsed.
+	 */
+	private static function pack( string $ip ): ?string {
+		$bin = @inet_pton( trim( $ip ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- inet_pton warns on malformed input; a false result is handled below.
+		if ( false === $bin ) {
+			return null;
+		}
+		if ( 16 === strlen( $bin ) && str_repeat( "\0", 10 ) . "\xff\xff" === substr( $bin, 0, 12 ) ) {
+			return substr( $bin, 12 );
+		}
+		return $bin;
+	}
+
+	/**
+	 * CIDR / bare-IP match for IPv4 and IPv6, by prefix comparison of the
+	 * packed addresses. A range written in IPv4-mapped IPv6 form with a prefix
+	 * of at least 96 bits is compared as the equivalent IPv4 range.
+	 *
+	 * @param string $ip_bin Packed IP address (see pack()).
+	 * @param string $range  CIDR range or bare IP.
 	 * @return bool
 	 */
-	private static function ip_in_cidr( string $ip, string $range ): bool {
+	private static function ip_in_cidr( string $ip_bin, string $range ): bool {
 		$range = trim( $range );
 		if ( '' === $range ) {
 			return false;
 		}
 
 		if ( false === strpos( $range, '/' ) ) {
-			return $ip === $range;
+			return self::pack( $range ) === $ip_bin;
 		}
 
 		list( $subnet, $bits ) = explode( '/', $range, 2 );
-		$bits                  = (int) $bits;
+		if ( '' === $bits || ! ctype_digit( $bits ) ) {
+			return false;
+		}
+		$bits = (int) $bits;
 
-		$ip_bin     = @inet_pton( $ip ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- inet_pton warns on malformed input; a false result is handled below.
-		$subnet_bin = @inet_pton( $subnet ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- inet_pton warns on malformed input; a false result is handled below.
-
-		if ( false === $ip_bin || false === $subnet_bin || strlen( $ip_bin ) !== strlen( $subnet_bin ) ) {
-			return false; // Unparseable or IPv4/IPv6 family mismatch.
+		$subnet_raw = @inet_pton( trim( $subnet ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- inet_pton warns on malformed input; a false result is handled below.
+		if ( false === $subnet_raw ) {
+			return false;
+		}
+		$subnet_bin = self::pack( $subnet );
+		if ( strlen( $subnet_bin ) !== strlen( $subnet_raw ) ) {
+			// An IPv4-mapped range: below /96 it also spans non-IPv4 addresses.
+			if ( $bits < 96 ) {
+				$subnet_bin = $subnet_raw;
+				if ( 4 === strlen( $ip_bin ) ) {
+					$ip_bin = str_repeat( "\0", 10 ) . "\xff\xff" . $ip_bin;
+				}
+			} else {
+				$bits -= 96;
+			}
 		}
 
-		// Cap the prefix to the address width so a malformed range (e.g. an IPv4
-		// address with /33+) can never read past the packed binary.
-		$bits        = max( 0, min( $bits, strlen( $ip_bin ) * 8 ) );
+		if ( strlen( $ip_bin ) !== strlen( $subnet_bin ) || $bits > strlen( $ip_bin ) * 8 ) {
+			return false; // IPv4/IPv6 family mismatch, or a prefix wider than the address.
+		}
+
 		$whole_bytes = intdiv( $bits, 8 );
 		$rem_bits    = $bits % 8;
 
@@ -269,8 +352,8 @@ class IP {
 		}
 
 		if ( $rem_bits > 0 ) {
-			$mask = chr( ( 0xFF << ( 8 - $rem_bits ) ) & 0xFF );
-			if ( ( ord( $ip_bin[ $whole_bytes ] ) & ord( $mask ) ) !== ( ord( $subnet_bin[ $whole_bytes ] ) & ord( $mask ) ) ) {
+			$mask = ( 0xFF << ( 8 - $rem_bits ) ) & 0xFF;
+			if ( ( ord( $ip_bin[ $whole_bytes ] ) & $mask ) !== ( ord( $subnet_bin[ $whole_bytes ] ) & $mask ) ) {
 				return false;
 			}
 		}

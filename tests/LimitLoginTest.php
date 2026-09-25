@@ -38,8 +38,9 @@ class LimitLoginTest extends TestCase {
 	 * Fresh stores and a fixed client address.
 	 */
 	private function reset_state(): void {
-		$GLOBALS['dls_test_transients'] = array();
-		$GLOBALS['dls_test_options']    = array();
+		$GLOBALS['dls_test_transients']    = array();
+		$GLOBALS['dls_test_options']       = array();
+		$GLOBALS['dls_test_actions_fired'] = array();
 		$GLOBALS['wpdb']                = new \DLS_Test_Wpdb();
 		$_SERVER['REMOTE_ADDR']         = '203.0.113.9';
 
@@ -138,5 +139,133 @@ class LimitLoginTest extends TestCase {
 		);
 		$this->assertSame( array(), array_values( $shares ) );
 		$this->assertTrue( $l->is_locked( '203.0.113.9' ) );
+	}
+
+	/**
+	 * Let the current lock run out, as its transient expiring would.
+	 */
+	private function expire_lock(): void {
+		delete_transient( 'dragonloginsecurity_lock_' . md5( '203.0.113.9' ) );
+	}
+
+	/**
+	 * Seconds the current lock was set for.
+	 *
+	 * @return int
+	 */
+	private function lock_ttl(): int {
+		return (int) ( $GLOBALS['dls_test_transient_ttls'][ 'dragonloginsecurity_lock_' . md5( '203.0.113.9' ) ] ?? 0 );
+	}
+
+	public function test_one_failure_after_a_lockout_ends_does_not_lock_again(): void {
+		$this->reset_state();
+		$l = new Limit_Login();
+		for ( $i = 0; $i < 5; $i++ ) {
+			$l->on_failure( 'owner' );
+		}
+		$this->assertTrue( $l->is_locked( '203.0.113.9' ) );
+		$this->expire_lock();
+
+		$l->on_failure( 'owner' );
+		$this->assertFalse( $l->is_locked( '203.0.113.9' ) );
+		for ( $i = 0; $i < 3; $i++ ) {
+			$l->on_failure( 'owner' );
+		}
+		$this->assertFalse( $l->is_locked( '203.0.113.9' ) );
+		$l->on_failure( 'owner' );
+		$this->assertTrue( $l->is_locked( '203.0.113.9' ) );
+	}
+
+	public function test_repeated_lockouts_still_escalate(): void {
+		$this->reset_state();
+		$l         = new Limit_Login();
+		$durations = array();
+		for ( $round = 0; $round < 4; $round++ ) {
+			for ( $i = 0; $i < 5; $i++ ) {
+				$l->on_failure( 'owner' );
+			}
+			$this->assertTrue( $l->is_locked( '203.0.113.9' ) );
+			$durations[] = $this->lock_ttl();
+			$this->expire_lock();
+		}
+		$this->assertSame( array( 900, 3600, 3600, 86400 ), $durations );
+
+		$lockouts = array_filter(
+			$GLOBALS['dls_test_actions_fired'],
+			static function ( $fired ) {
+				return 'dragonloginsecurity_lockout' === $fired[0];
+			}
+		);
+		$this->assertCount( 4, $lockouts );
+	}
+
+	public function test_failures_during_a_lockout_escalate_it(): void {
+		$this->reset_state();
+		$l = new Limit_Login();
+		for ( $i = 0; $i < 10; $i++ ) {
+			$l->on_failure( 'owner', new \WP_Error( $i < 5 ? 'incorrect_password' : 'dragonloginsecurity_locked' ) );
+		}
+		$this->assertSame( 3600, $this->lock_ttl() );
+		for ( $i = 0; $i < 10; $i++ ) {
+			$l->on_failure( 'owner', new \WP_Error( 'dragonloginsecurity_locked' ) );
+		}
+		$this->assertSame( 86400, $this->lock_ttl() );
+	}
+
+	public function test_admin_clear_also_forgets_earlier_lockouts(): void {
+		$this->reset_state();
+		$l = new Limit_Login();
+		for ( $i = 0; $i < 5; $i++ ) {
+			$l->on_failure( 'owner' );
+		}
+		$this->expire_lock();
+		$l->clear( '203.0.113.9' );
+		for ( $i = 0; $i < 5; $i++ ) {
+			$l->on_failure( 'owner' );
+		}
+		$this->assertSame( 900, $this->lock_ttl() );
+	}
+
+	public function test_refused_password_only_sign_in_is_not_a_failure(): void {
+		$this->reset_state();
+		$l = new Limit_Login();
+		for ( $i = 0; $i < 10; $i++ ) {
+			$this->assertSame( 0, $l->on_failure( 'owner', new \WP_Error( 'dragonloginsecurity_2fa_required' ) ) );
+		}
+		$this->assertFalse( $l->is_locked( '203.0.113.9' ) );
+		$this->assertFalse( get_transient( 'dragonloginsecurity_fail_' . md5( '203.0.113.9' ) ) );
+	}
+
+	public function test_deny_list_ranges_block_matching_addresses(): void {
+		$this->reset_state();
+		update_option(
+			'dragonloginsecurity_settings',
+			array(
+				'allow_ips' => array( '2001:db8:1::/48' ),
+				'deny_ips'  => array( '10.9.9.0/24', '2001:db8::/32' ),
+			)
+		);
+		$l = new Limit_Login();
+		$this->assertTrue( $l->is_locked( '10.9.9.77' ) );
+		$this->assertTrue( $l->is_locked( '::ffff:10.9.9.77' ) );
+		$this->assertFalse( $l->is_locked( '10.9.8.77' ) );
+		$this->assertTrue( $l->is_locked( '2001:DB8:ffff::1' ) );
+		$this->assertFalse( $l->is_locked( '2001:db8:1::5' ) );
+		$this->assertFalse( $l->is_locked( '2001:db9::1' ) );
+	}
+
+	public function test_single_addresses_match_in_any_notation(): void {
+		$this->reset_state();
+		update_option(
+			'dragonloginsecurity_settings',
+			array(
+				'allow_ips' => array(),
+				'deny_ips'  => array( '2001:db8:0:0::7', '::ffff:198.51.100.7' ),
+			)
+		);
+		$l = new Limit_Login();
+		$this->assertTrue( $l->is_locked( '2001:db8::7' ) );
+		$this->assertTrue( $l->is_locked( '198.51.100.7' ) );
+		$this->assertFalse( $l->is_locked( '198.51.100.8' ) );
 	}
 }

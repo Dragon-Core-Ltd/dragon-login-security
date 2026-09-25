@@ -164,6 +164,7 @@ class Two_Factor {
 		add_filter( 'authenticate', array( $this, 'reset_app_password' ), PHP_INT_MIN, 1 );
 		add_filter( 'authenticate', array( $this, 'enforce_non_interactive' ), 40, 1 );
 		add_action( 'application_password_did_authenticate', array( $this, 'mark_app_password' ), 10, 1 );
+		add_filter( 'xmlrpc_login_error', array( $this, 'xmlrpc_login_error' ), 10, 2 );
 
 		// Hold back the sign-in cookies of a login that will be challenged, and
 		// record the session tokens issued so the challenge can destroy them.
@@ -573,6 +574,23 @@ class Two_Factor {
 			);
 		}
 		return $user;
+	}
+
+	/**
+	 * Replace XML-RPC's generic "Incorrect username or password" reply when the
+	 * refusal came from enforce_non_interactive(). That error is only produced
+	 * after the account password was accepted, so the reply tells nothing to a
+	 * caller who does not know the password.
+	 *
+	 * @param mixed $error XML-RPC fault core is about to send.
+	 * @param mixed $user  The WP_Error returned by wp_authenticate().
+	 * @return mixed
+	 */
+	public function xmlrpc_login_error( $error, $user = null ) {
+		if ( ! ( $user instanceof \WP_Error ) || 'dragonloginsecurity_2fa_required' !== $user->get_error_code() || ! class_exists( 'IXR_Error' ) ) {
+			return $error;
+		}
+		return new \IXR_Error( 403, __( 'Accounts with two-factor sign-in must use an application password for XML-RPC, not the account password.', 'dragon-login-security' ) );
 	}
 
 	/**

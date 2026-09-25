@@ -12,8 +12,8 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Detects Limit Login Attempts (and Reloaded) options and Wordfence's config
  * table, and merges their IP lists into this plugin's allow/deny settings.
- * Only syntactically valid single IPs are imported; ranges and usernames are
- * skipped and reported.
+ * Single IP addresses and CIDR ranges are imported; other formats (such as
+ * start-end ranges) and usernames are skipped and reported.
  */
 class Importer {
 
@@ -81,16 +81,16 @@ class Importer {
 			$notice = array(
 				'type'    => 'success',
 				'message' => sprintf(
-					/* translators: 1: allow-list additions, e.g. "3 allow-list addresses", 2: deny-list additions, e.g. "2 deny-list addresses", 3: skipped entries, e.g. "1 entry". */
-					__( 'Import finished: %1$s and %2$s added; %3$s skipped (ranges or invalid).', 'dragon-login-security' ),
+					/* translators: 1: allow-list additions, e.g. "3 allow-list entries", 2: deny-list additions, e.g. "2 deny-list entries", 3: skipped entries, e.g. "1 entry". */
+					__( 'Import finished: %1$s and %2$s added; %3$s skipped (not a single IP address or CIDR range).', 'dragon-login-security' ),
 					sprintf(
-						/* translators: %s: number of addresses. */
-						_n( '%s allow-list address', '%s allow-list addresses', (int) $result['allow'], 'dragon-login-security' ),
+						/* translators: %s: number of addresses and ranges. */
+						_n( '%s allow-list entry', '%s allow-list entries', (int) $result['allow'], 'dragon-login-security' ),
 						number_format_i18n( (int) $result['allow'] )
 					),
 					sprintf(
-						/* translators: %s: number of addresses. */
-						_n( '%s deny-list address', '%s deny-list addresses', (int) $result['deny'], 'dragon-login-security' ),
+						/* translators: %s: number of addresses and ranges. */
+						_n( '%s deny-list entry', '%s deny-list entries', (int) $result['deny'], 'dragon-login-security' ),
 						number_format_i18n( (int) $result['deny'] )
 					),
 					sprintf(
@@ -142,11 +142,12 @@ class Importer {
 		) as $list => $candidates ) {
 			$key = 'allow' === $list ? 'allow_ips' : 'deny_ips';
 			foreach ( $candidates as $candidate ) {
-				$ip = trim( (string) $candidate );
-				if ( '' === $ip ) {
+				$entry = trim( (string) $candidate );
+				if ( '' === $entry ) {
 					continue;
 				}
-				if ( ! filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+				$ip = IP::normalise_list_entry( $entry );
+				if ( null === $ip ) {
 					++$skipped;
 					continue;
 				}

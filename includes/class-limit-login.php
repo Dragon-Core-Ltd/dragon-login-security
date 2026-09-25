@@ -30,6 +30,11 @@ class Limit_Login {
 	const WINDOW = HOUR_IN_SECONDS;
 
 	/**
+	 * Seconds an address's earlier lockouts are remembered for escalation.
+	 */
+	const ESCALATION_WINDOW = DAY_IN_SECONDS;
+
+	/**
 	 * Register hooks.
 	 */
 	public function hook(): void {
@@ -104,11 +109,22 @@ class Limit_Login {
 	}
 
 	/**
-	 * Record a failed login and, at a tier boundary, apply a lockout.
+	 * Record a failed login and apply or extend a lockout.
+	 *
+	 * Failures are counted per address. THRESHOLD failures lock the address,
+	 * and failures made while it is locked keep counting and extend the lock.
+	 * Once a lock has run out, the next failure starts a new count, so a single
+	 * mistake after a lockout does not lock the address again. The failures
+	 * behind earlier lockouts are remembered for ESCALATION_WINDOW and added to
+	 * the current count when choosing the lock length, so repeated lockouts
+	 * escalate along the same ladder (lockout_seconds()).
+	 *
+	 * A password-only sign-in refused because the account uses two-factor
+	 * sign-in is not counted: the password was correct.
 	 *
 	 * @param string $username Attempted username.
 	 * @param mixed  $error    WP error from the failed attempt.
-	 * @return int Current failure count.
+	 * @return int Failures counted toward the lock length (earlier lockouts included).
 	 */
 	public function on_failure( string $username, $error = null ): int {
 		$ip = IP::current();
@@ -116,27 +132,47 @@ class Limit_Login {
 			return 0;
 		}
 
-		$key   = 'dragonloginsecurity_fail_' . md5( $ip );
-		$count = (int) get_transient( $key ) + 1;
+		$code = $error instanceof \WP_Error ? $error->get_error_code() : '';
+		if ( 'dragonloginsecurity_2fa_required' === $code ) {
+			return 0;
+		}
+
+		$key       = 'dragonloginsecurity_fail_' . md5( $ip );
+		$prior_key = 'dragonloginsecurity_prior_' . md5( $ip );
+		$count     = (int) get_transient( $key );
+		$prior     = (int) get_transient( $prior_key );
+		$locked    = (bool) get_transient( 'dragonloginsecurity_lock_' . md5( $ip ) );
+
+		if ( ! $locked && $count >= self::THRESHOLD ) {
+			// The previous lock has run out: bank its failures and count afresh.
+			$prior += $count;
+			$count  = 0;
+			set_transient( $prior_key, $prior, self::ESCALATION_WINDOW );
+		}
+
+		++$count;
 		set_transient( $key, $count, self::WINDOW );
+		$total = $prior + $count;
 
 		// The address total decides lockouts; this per-username share of it is
 		// what a later successful sign-in by that same account may forgive. No
 		// share is kept for attempts that never reached an account.
-		$code = $error instanceof \WP_Error ? $error->get_error_code() : '';
 		if ( ! in_array( $code, array( 'invalid_username', 'invalid_email', 'dragonloginsecurity_locked' ), true ) ) {
 			$user_key = $this->user_key( $ip, $username );
 			set_transient( $user_key, (int) get_transient( $user_key ) + 1, self::WINDOW );
 		}
 
-		$this->emit( 'user.login_failed', $ip, $username, $count );
+		$this->emit( 'user.login_failed', $ip, $username, $total );
 
-		$seconds = $this->lockout_seconds( $count );
-		if ( $seconds > 0 ) {
-			set_transient( 'dragonloginsecurity_lock_' . md5( $ip ), 1, $seconds );
-			if ( $this->is_tier_boundary( $count ) ) {
-				$this->record_lockout( $ip, $username, $count );
-				$this->emit( 'user.lockout', $ip, $username, $count );
+		if ( $count >= self::THRESHOLD ) {
+			set_transient( 'dragonloginsecurity_lock_' . md5( $ip ), 1, $this->lockout_seconds( $total ) );
+			// A new lockout, or one escalated to a longer tier while in force.
+			if ( ! $locked || $this->is_tier_boundary( $total ) ) {
+				if ( ! $locked && $prior > 0 ) {
+					set_transient( $prior_key, $prior, self::ESCALATION_WINDOW );
+				}
+				$this->record_lockout( $ip, $username, $total );
+				$this->emit( 'user.lockout', $ip, $username, $total );
 
 				/**
 				 * Fires when an address has been locked out after repeated failures.
@@ -144,11 +180,11 @@ class Limit_Login {
 				 * @param string $ip    Address locked out.
 				 * @param int    $count Failures counted so far.
 				 */
-				do_action( 'dragonloginsecurity_lockout', $ip, $count );
+				do_action( 'dragonloginsecurity_lockout', $ip, $total );
 			}
 		}
 
-		return $count;
+		return $total;
 	}
 
 	/**
@@ -211,8 +247,21 @@ class Limit_Login {
 		$remaining = (int) get_transient( $key ) - $forgiven;
 		if ( $remaining > 0 ) {
 			set_transient( $key, $remaining, self::WINDOW );
+			return;
+		}
+		delete_transient( $key );
+		if ( 0 === $remaining ) {
+			return;
+		}
+
+		// Forgiven failures older than the current count sit in the banked
+		// total from earlier lockouts.
+		$prior_key = 'dragonloginsecurity_prior_' . md5( $ip );
+		$prior     = (int) get_transient( $prior_key ) + $remaining;
+		if ( $prior > 0 ) {
+			set_transient( $prior_key, $prior, self::ESCALATION_WINDOW );
 		} else {
-			delete_transient( $key );
+			delete_transient( $prior_key );
 		}
 	}
 
@@ -247,6 +296,7 @@ class Limit_Login {
 			return;
 		}
 		delete_transient( 'dragonloginsecurity_fail_' . md5( $ip ) );
+		delete_transient( 'dragonloginsecurity_prior_' . md5( $ip ) );
 		delete_transient( 'dragonloginsecurity_lock_' . md5( $ip ) );
 	}
 
@@ -282,7 +332,7 @@ class Limit_Login {
 	private function in_list( string $ip, string $type ): bool {
 		$settings = get_option( 'dragonloginsecurity_settings', array() );
 		$list     = is_array( $settings ) && ! empty( $settings[ $type . '_ips' ] ) ? (array) $settings[ $type . '_ips' ] : array();
-		return in_array( $ip, $list, true );
+		return array() !== $list && IP::in_ranges( $ip, $list );
 	}
 
 	/**

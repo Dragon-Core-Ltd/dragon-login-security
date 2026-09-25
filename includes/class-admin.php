@@ -208,12 +208,16 @@ class Admin {
 		}
 		check_admin_referer( 'dragonloginsecurity_settings' );
 
+		$proxies  = self::parse_ip_list( isset( $_POST['trusted_proxies'] ) ? wp_unslash( $_POST['trusted_proxies'] ) : '' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Parsed + validated line-by-line in parse_ip_list().
+		$allow    = self::parse_ip_list( isset( $_POST['allow_ips'] ) ? wp_unslash( $_POST['allow_ips'] ) : '' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Parsed + validated line-by-line in parse_ip_list().
+		$deny     = self::parse_ip_list( isset( $_POST['deny_ips'] ) ? wp_unslash( $_POST['deny_ips'] ) : '' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Parsed + validated line-by-line in parse_ip_list().
 		$settings = array(
 			'trust_proxy'     => isset( $_POST['trust_proxy'] ),
-			'trusted_proxies' => $this->parse_proxies( isset( $_POST['trusted_proxies'] ) ? wp_unslash( $_POST['trusted_proxies'] ) : '' ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Parsed + validated line-by-line in parse_proxies().
-			'allow_ips'       => $this->parse_ips( isset( $_POST['allow_ips'] ) ? wp_unslash( $_POST['allow_ips'] ) : '' ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Parsed + validated line-by-line in parse_ips().
-			'deny_ips'        => $this->parse_ips( isset( $_POST['deny_ips'] ) ? wp_unslash( $_POST['deny_ips'] ) : '' ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Parsed + validated line-by-line in parse_ips().
+			'trusted_proxies' => $proxies['valid'],
+			'allow_ips'       => $allow['valid'],
+			'deny_ips'        => $deny['valid'],
 		);
+		$rejected = array_values( array_unique( array_merge( $allow['invalid'], $deny['invalid'], $proxies['invalid'] ) ) );
 		$saved    = self::persist_settings( $settings );
 		if ( $saved ) {
 			// The ranges were reviewed; report only mismatches seen from now on.
@@ -231,7 +235,7 @@ class Admin {
 		update_option( 'dragonloginsecurity_delete_data_on_uninstall', $delete_data );
 		$delete_saved = (bool) get_option( 'dragonloginsecurity_delete_data_on_uninstall' ) === $delete_data;
 
-		self::record_save_result( $saved, $delete_saved );
+		self::record_save_result( $saved, $delete_saved, $rejected );
 		wp_safe_redirect( admin_url( 'options-general.php?page=dragon-login-security' ) );
 		exit;
 	}
@@ -242,11 +246,26 @@ class Admin {
 	 * The two writes are reported separately so a partial save is described as
 	 * one, rather than the settings result standing in for both.
 	 *
-	 * @param bool $saved        Whether the settings were confirmed stored.
-	 * @param bool $delete_saved Whether the uninstall preference was confirmed stored.
+	 * @param bool     $saved        Whether the settings were confirmed stored.
+	 * @param bool     $delete_saved Whether the uninstall preference was confirmed stored.
+	 * @param string[] $rejected     IP list entries refused as invalid.
 	 */
-	public static function record_save_result( bool $saved, bool $delete_saved = true ): void {
-		if ( ! $saved ) {
+	public static function record_save_result( bool $saved, bool $delete_saved = true, array $rejected = array() ): void {
+		if ( $saved && array() !== $rejected ) {
+			$message = sprintf(
+				/* translators: %s: list of the refused entries. */
+				_n(
+					'Settings saved, except this entry, which is not a valid IP address or CIDR range and was not saved: %s. Enter one IP address or CIDR range per line, such as 203.0.113.10 or 203.0.113.0/24.',
+					'Settings saved, except these entries, which are not valid IP addresses or CIDR ranges and were not saved: %s. Enter one IP address or CIDR range per line, such as 203.0.113.10 or 203.0.113.0/24.',
+					count( $rejected ),
+					'dragon-login-security'
+				),
+				wp_sprintf( '%l', $rejected )
+			);
+			if ( ! $delete_saved ) {
+				$message .= ' ' . __( 'The "delete data on uninstall" preference could not be stored and is unchanged.', 'dragon-login-security' );
+			}
+		} elseif ( ! $saved ) {
 			$message = __( 'Settings could not be saved. Your previous settings are still in effect; try again.', 'dragon-login-security' );
 		} elseif ( ! $delete_saved ) {
 			$message = __( 'Settings saved, but the "delete data on uninstall" preference could not be stored and is unchanged. Try again.', 'dragon-login-security' );
@@ -257,7 +276,7 @@ class Admin {
 		set_transient(
 			'dragonloginsecurity_settings_notice',
 			array(
-				'type'    => $saved && $delete_saved ? 'success' : 'error',
+				'type'    => $saved && $delete_saved && array() === $rejected ? 'success' : 'error',
 				'message' => $message,
 			),
 			60
@@ -278,58 +297,31 @@ class Admin {
 	}
 
 	/**
-	 * Parse a textarea of IPs into a validated list.
+	 * Parse a textarea of IP addresses and CIDR ranges, one per line.
 	 *
 	 * @param string $raw Textarea contents.
-	 * @return string[]
+	 * @return array{valid: string[], invalid: string[]} Valid entries, and the
+	 *                                                  lines refused as invalid.
 	 */
-	private function parse_ips( $raw ): array {
-		$out = array();
-		foreach ( preg_split( '/[\r\n]+/', (string) $raw ) as $line ) {
-			$ip = trim( sanitize_text_field( $line ) );
-			if ( '' !== $ip && filter_var( $ip, FILTER_VALIDATE_IP ) ) {
-				$out[] = $ip;
-			}
-		}
-		return array_values( array_unique( $out ) );
-	}
-
-	/**
-	 * Parse a textarea of trusted proxy addresses (bare IP or CIDR) into a
-	 * validated list.
-	 *
-	 * @param string $raw Textarea contents.
-	 * @return string[]
-	 */
-	private function parse_proxies( $raw ): array {
-		$out = array();
+	public static function parse_ip_list( $raw ): array {
+		$valid   = array();
+		$invalid = array();
 		foreach ( preg_split( '/[\r\n]+/', (string) $raw ) as $line ) {
 			$entry = trim( sanitize_text_field( $line ) );
 			if ( '' === $entry ) {
 				continue;
 			}
-
-			if ( false !== strpos( $entry, '/' ) ) {
-				list( $subnet, $bits ) = explode( '/', $entry, 2 );
-				if ( ! ctype_digit( $bits ) ) {
-					continue;
-				}
-				$bits = (int) $bits;
-				if ( filter_var( $subnet, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) ) {
-					$max = 32;
-				} elseif ( filter_var( $subnet, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) ) {
-					$max = 128;
-				} else {
-					continue;
-				}
-				if ( $bits >= 0 && $bits <= $max ) {
-					$out[] = $subnet . '/' . $bits;
-				}
-			} elseif ( filter_var( $entry, FILTER_VALIDATE_IP ) ) {
-				$out[] = $entry;
+			$normal = IP::normalise_list_entry( $entry );
+			if ( null === $normal ) {
+				$invalid[] = $entry;
+			} else {
+				$valid[] = $normal;
 			}
 		}
-		return array_values( array_unique( $out ) );
+		return array(
+			'valid'   => array_values( array_unique( $valid ) ),
+			'invalid' => array_values( array_unique( $invalid ) ),
+		);
 	}
 
 	/**

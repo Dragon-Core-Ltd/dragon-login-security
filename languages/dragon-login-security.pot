@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-25T09:01:27+00:00\n"
+"POT-Creation-Date: 2026-09-25T09:33:21+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: dragon-login-security\n"
@@ -185,7 +185,7 @@ msgid "Never lock out these IPs"
 msgstr ""
 
 #: admin/views/settings.php:39
-msgid "One IP per line. These IPs are never counted or locked out (e.g. your office)."
+msgid "One IP address or CIDR range per line, such as 203.0.113.10 or 203.0.113.0/24. These addresses are never counted or locked out (e.g. your office)."
 msgstr ""
 
 #: admin/views/settings.php:43
@@ -193,7 +193,7 @@ msgid "Always block these IPs"
 msgstr ""
 
 #: admin/views/settings.php:46
-msgid "One IP per line. These IPs cannot log in at all."
+msgid "One IP address or CIDR range per line, such as 198.51.100.23 or 2001:db8::/32. These addresses cannot log in at all."
 msgstr ""
 
 #: admin/views/settings.php:50
@@ -291,15 +291,26 @@ msgstr ""
 msgid "Settings"
 msgstr ""
 
-#: includes/class-admin.php:250
+#. translators: %s: list of the refused entries.
+#: includes/class-admin.php:257
+msgid "Settings saved, except this entry, which is not a valid IP address or CIDR range and was not saved: %s. Enter one IP address or CIDR range per line, such as 203.0.113.10 or 203.0.113.0/24."
+msgid_plural "Settings saved, except these entries, which are not valid IP addresses or CIDR ranges and were not saved: %s. Enter one IP address or CIDR range per line, such as 203.0.113.10 or 203.0.113.0/24."
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/class-admin.php:266
+msgid "The \"delete data on uninstall\" preference could not be stored and is unchanged."
+msgstr ""
+
+#: includes/class-admin.php:269
 msgid "Settings could not be saved. Your previous settings are still in effect; try again."
 msgstr ""
 
-#: includes/class-admin.php:252
+#: includes/class-admin.php:271
 msgid "Settings saved, but the \"delete data on uninstall\" preference could not be stored and is unchanged. Try again."
 msgstr ""
 
-#: includes/class-admin.php:254
+#: includes/class-admin.php:273
 msgid "Settings saved."
 msgstr ""
 
@@ -405,22 +416,22 @@ msgstr ""
 msgid "Unknown import source."
 msgstr ""
 
-#. translators: 1: allow-list additions, e.g. "3 allow-list addresses", 2: deny-list additions, e.g. "2 deny-list addresses", 3: skipped entries, e.g. "1 entry".
+#. translators: 1: allow-list additions, e.g. "3 allow-list entries", 2: deny-list additions, e.g. "2 deny-list entries", 3: skipped entries, e.g. "1 entry".
 #: includes/class-importer.php:85
-msgid "Import finished: %1$s and %2$s added; %3$s skipped (ranges or invalid)."
+msgid "Import finished: %1$s and %2$s added; %3$s skipped (not a single IP address or CIDR range)."
 msgstr ""
 
-#. translators: %s: number of addresses.
+#. translators: %s: number of addresses and ranges.
 #: includes/class-importer.php:88
-msgid "%s allow-list address"
-msgid_plural "%s allow-list addresses"
+msgid "%s allow-list entry"
+msgid_plural "%s allow-list entries"
 msgstr[0] ""
 msgstr[1] ""
 
-#. translators: %s: number of addresses.
+#. translators: %s: number of addresses and ranges.
 #: includes/class-importer.php:93
-msgid "%s deny-list address"
-msgid_plural "%s deny-list addresses"
+msgid "%s deny-list entry"
+msgid_plural "%s deny-list entries"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -435,19 +446,19 @@ msgstr[1] ""
 msgid "Import failed: the settings could not be saved, so no addresses were added. Try again."
 msgstr ""
 
-#: includes/class-limit-login.php:100
+#: includes/class-limit-login.php:105
 msgid "Too many failed attempts. Please try again later."
 msgstr ""
 
 #. translators: 1: IP address, 2: number of failed attempts.
-#: includes/class-limit-login.php:311
+#: includes/class-limit-login.php:361
 msgid "IP %1$s locked out after %2$s failed attempt"
 msgid_plural "IP %1$s locked out after %2$s failed attempts"
 msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: username.
-#: includes/class-limit-login.php:313
+#: includes/class-limit-login.php:363
 msgid "Failed login for \"%s\""
 msgstr ""
 
@@ -532,68 +543,72 @@ msgstr ""
 msgid "You are not allowed to do that."
 msgstr ""
 
-#: includes/class-two-factor.php:572
+#: includes/class-two-factor.php:573
 msgid "Two-factor authentication is required for this account. Create an application password for programmatic access."
 msgstr ""
 
-#: includes/class-two-factor.php:602
+#: includes/class-two-factor.php:593
+msgid "Accounts with two-factor sign-in must use an application password for XML-RPC, not the account password."
+msgstr ""
+
+#: includes/class-two-factor.php:620
 msgid "Authenticator secret could not be decrypted and was cleared."
 msgstr ""
 
-#: includes/class-two-factor.php:845
+#: includes/class-two-factor.php:863
 msgid "You have logged in successfully."
 msgstr ""
 
-#: includes/class-two-factor.php:859
+#: includes/class-two-factor.php:877
 msgid "Invalid code."
 msgstr ""
 
-#: includes/class-two-factor.php:872
+#: includes/class-two-factor.php:890
 msgid "That code was not correct. Please try again."
 msgstr ""
 
 #. translators: %s: site name.
-#: includes/class-two-factor.php:1014
+#: includes/class-two-factor.php:1032
 msgid "[%s] Unsuccessful two-factor sign-in on your account"
 msgstr ""
 
 #. translators: %s: username.
-#: includes/class-two-factor.php:1020
+#: includes/class-two-factor.php:1038
 msgid "Hello %s,"
 msgstr ""
 
 #. translators: %s: site name.
-#: includes/class-two-factor.php:1025
+#: includes/class-two-factor.php:1043
 msgid "Someone signed in to %s with your password, then entered incorrect two-factor codes too many times."
 msgstr ""
 
 #. translators: %s: number of minutes.
-#: includes/class-two-factor.php:1030
+#: includes/class-two-factor.php:1048
 msgid "To protect your account, the two-factor step is paused for up to %s minute."
 msgid_plural "To protect your account, the two-factor step is paused for up to %s minutes."
 msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: password reset address.
-#: includes/class-two-factor.php:1040
+#: includes/class-two-factor.php:1058
 msgid "If this was not you, someone else knows your password. Change it now: %s"
 msgstr ""
 
-#: includes/class-two-factor.php:1043
+#: includes/class-two-factor.php:1061
 msgid "Resetting your password also ends the pause."
 msgstr ""
 
-#: includes/class-two-factor.php:1071
+#: includes/class-two-factor.php:1089
 msgid "Too many incorrect codes. Please try again later."
 msgstr ""
 
 #. translators: %s: username.
-#: includes/class-two-factor.php:1171
+#: includes/class-two-factor.php:1189
 msgid "Two-factor passed: %s"
 msgstr ""
 
 #. translators: %s: username.
-#: includes/class-two-factor.php:1173
+#: includes/class-two-factor.php:1191
 msgid "Two-factor failed: %s"
 msgstr ""
 

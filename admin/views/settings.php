@@ -36,14 +36,14 @@ $dragonloginsecurity_deny  = ! empty( $dragonloginsecurity_s['deny_ips'] ) ? imp
 				<th scope="row"><?php esc_html_e( 'Never lock out these IPs', 'dragon-login-security' ); ?></th>
 				<td>
 					<textarea name="allow_ips" rows="4" class="large-text code" placeholder="203.0.113.10"><?php echo esc_textarea( $dragonloginsecurity_allow ); ?></textarea>
-					<p class="description"><?php esc_html_e( 'One IP per line. These IPs are never counted or locked out (e.g. your office).', 'dragon-login-security' ); ?></p>
+					<p class="description"><?php esc_html_e( 'One IP address or CIDR range per line, such as 203.0.113.10 or 203.0.113.0/24. These addresses are never counted or locked out (e.g. your office).', 'dragon-login-security' ); ?></p>
 				</td>
 			</tr>
 			<tr>
 				<th scope="row"><?php esc_html_e( 'Always block these IPs', 'dragon-login-security' ); ?></th>
 				<td>
 					<textarea name="deny_ips" rows="4" class="large-text code" placeholder="198.51.100.23"><?php echo esc_textarea( $dragonloginsecurity_deny ); ?></textarea>
-					<p class="description"><?php esc_html_e( 'One IP per line. These IPs cannot log in at all.', 'dragon-login-security' ); ?></p>
+					<p class="description"><?php esc_html_e( 'One IP address or CIDR range per line, such as 198.51.100.23 or 2001:db8::/32. These addresses cannot log in at all.', 'dragon-login-security' ); ?></p>
 				</td>
 			</tr>
 			<tr>

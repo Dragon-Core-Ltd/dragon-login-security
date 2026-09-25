@@ -108,6 +108,26 @@ if ( ! function_exists( 'wp_get_list_item_separator' ) ) {
 }
 
 
+if ( ! function_exists( 'wp_sprintf' ) ) {
+	/**
+	 * Mirrors core's %l list directive for the English locale; other
+	 * directives go through sprintf().
+	 */
+	function wp_sprintf( $pattern, ...$args ) {
+		if ( '%l' === $pattern ) {
+			$items = array_values( (array) ( $args[0] ?? array() ) );
+			if ( count( $items ) < 2 ) {
+				return (string) ( $items[0] ?? '' );
+			}
+			if ( 2 === count( $items ) ) {
+				return $items[0] . ' and ' . $items[1];
+			}
+			$last = array_pop( $items );
+			return implode( ', ', $items ) . ', and ' . $last;
+		}
+		return sprintf( $pattern, ...$args );
+	}
+}
 if ( ! function_exists( 'wp_unslash' ) ) {
 	function wp_unslash( $value ) {
 		return is_array( $value ) ? array_map( 'wp_unslash', $value ) : ( is_string( $value ) ? stripslashes( $value ) : $value );
@@ -375,6 +395,19 @@ if ( ! class_exists( 'WP_Error' ) ) {
 		}
 	}
 }
+if ( ! class_exists( 'IXR_Error' ) ) {
+	/**
+	 * Mirrors core's XML-RPC fault object.
+	 */
+	class IXR_Error {
+		public $code;
+		public $message;
+		public function __construct( $code, $message ) {
+			$this->code    = $code;
+			$this->message = htmlspecialchars( $message );
+		}
+	}
+}
 if ( ! class_exists( 'WP_User' ) ) {
 	class WP_User {
 		public $ID         = 0;
@@ -430,6 +463,7 @@ if ( ! function_exists( 'add_filter' ) ) {
 }
 
 $GLOBALS['dls_test_transients'] = array();
+$GLOBALS['dls_test_transient_ttls'] = array();
 
 if ( ! function_exists( 'get_transient' ) ) {
 	/**
@@ -448,8 +482,8 @@ if ( ! function_exists( 'get_transient' ) ) {
 }
 if ( ! function_exists( 'set_transient' ) ) {
 	function set_transient( $key, $value, $ttl = 0 ) {
-		unset( $ttl );
-		$GLOBALS['dls_test_transients'][ $key ] = $value;
+		$GLOBALS['dls_test_transient_ttls'][ $key ] = (int) $ttl;
+		$GLOBALS['dls_test_transients'][ $key ]     = $value;
 		return true;
 	}
 }
