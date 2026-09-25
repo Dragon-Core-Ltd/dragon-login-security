@@ -29,6 +29,14 @@ class WebAuthn {
 	const CHALLENGE_TTL = 300;
 
 	/**
+	 * Test-only override for availability. Null in production; a test sets it to
+	 * simulate a build that shipped without the WebAuthn library.
+	 *
+	 * @var bool|null
+	 */
+	public static ?bool $available_override = null;
+
+	/**
 	 * Whether the WebAuthn library is loaded. Passkey ceremonies depend on it;
 	 * when it is absent every entry point below degrades to "unavailable"
 	 * instead of failing.
@@ -36,6 +44,9 @@ class WebAuthn {
 	 * @return bool
 	 */
 	public static function available(): bool {
+		if ( null !== self::$available_override ) {
+			return self::$available_override;
+		}
 		return class_exists( \lbuchs\WebAuthn\WebAuthn::class );
 	}
 
@@ -104,7 +115,9 @@ class WebAuthn {
 			throw new \RuntimeException( 'WebAuthn library unavailable.' );
 		}
 		$rp_id = self::rp_id_from_url( home_url() );
-		return new \lbuchs\WebAuthn\WebAuthn( self::RP_NAME, $rp_id, array( 'none' ) );
+		// Binary option fields (challenge, user id, credential ids) serialise as
+		// base64url, the encoding the browser scripts decode.
+		return new \lbuchs\WebAuthn\WebAuthn( self::RP_NAME, $rp_id, array( 'none' ), true );
 	}
 
 	/**

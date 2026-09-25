@@ -40,7 +40,8 @@ class CLI {
 		delete_user_meta( $user->ID, Two_Factor::TOTP_META );
 		delete_user_meta( $user->ID, Provider_Backup_Codes::META_KEY );
 		delete_user_meta( $user->ID, 'dls_backup_codes_confirmed' );
-		Credentials::delete_for_user( $user->ID );
+		// Passkeys on any site of a network count as enrolment, so all go.
+		Credentials::delete_for_user_on_network( $user->ID );
 		\WP_CLI::success( sprintf( 'Two-factor disabled for %s. They can now sign in with a password alone.', $user->user_login ) );
 	}
 

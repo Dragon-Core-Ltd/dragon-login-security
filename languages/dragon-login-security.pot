@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-24T17:38:00+00:00\n"
+"POT-Creation-Date: 2026-09-25T00:31:18+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: dragon-login-security\n"
@@ -48,27 +48,43 @@ msgstr ""
 msgid "Two-Factor Authentication"
 msgstr ""
 
-#: admin/views/2fa-challenge.php:37
+#: admin/views/2fa-challenge.php:40
 msgid "Use a passkey"
 msgstr ""
 
-#: admin/views/2fa-challenge.php:40
+#: admin/views/2fa-challenge.php:44
 msgid "- or -"
 msgstr ""
 
-#: admin/views/2fa-challenge.php:50
-msgid "No usable second factor is available for this account right now. Ask an administrator to reset your two-factor settings."
-msgstr ""
-
 #: admin/views/2fa-challenge.php:55
-msgid "Authentication code"
+msgid "Your passkey is registered on another site in this network, and this site cannot check it. Sign in there with your passkey:"
 msgstr ""
 
 #: admin/views/2fa-challenge.php:60
-msgid "Use a backup code instead"
+msgid "signing in there also signs you in here"
+msgstr ""
+
+#: admin/views/2fa-challenge.php:60
+msgid "this site does not share its sign-in"
 msgstr ""
 
 #: admin/views/2fa-challenge.php:64
+msgid "If this site still asks for a second factor, add an authenticator app or create backup codes from your profile on that site - they work on every site in this network. Otherwise, ask an administrator to reset your two-factor settings."
+msgstr ""
+
+#: admin/views/2fa-challenge.php:66
+msgid "No usable second factor is available for this account right now. Ask an administrator to reset your two-factor settings."
+msgstr ""
+
+#: admin/views/2fa-challenge.php:71
+msgid "Authentication code"
+msgstr ""
+
+#: admin/views/2fa-challenge.php:76
+msgid "Use a backup code instead"
+msgstr ""
+
+#: admin/views/2fa-challenge.php:80
 msgid "Verify"
 msgstr ""
 
@@ -391,14 +407,14 @@ msgid "Too many failed attempts. Please try again later."
 msgstr ""
 
 #. translators: 1: IP address, 2: number of failed attempts.
-#: includes/class-limit-login.php:228
+#: includes/class-limit-login.php:311
 msgid "IP %1$s locked out after %2$s failed attempt"
 msgid_plural "IP %1$s locked out after %2$s failed attempts"
 msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: username.
-#: includes/class-limit-login.php:230
+#: includes/class-limit-login.php:313
 msgid "Failed login for \"%s\""
 msgstr ""
 
@@ -483,48 +499,64 @@ msgstr ""
 msgid "You are not allowed to do that."
 msgstr ""
 
-#: includes/class-two-factor.php:76
+#: includes/class-two-factor.php:326
 msgid "Two-factor authentication is required for this account. Create an application password for programmatic access."
 msgstr ""
 
-#: includes/class-two-factor.php:106
+#: includes/class-two-factor.php:356
 msgid "Authenticator secret could not be decrypted and was cleared."
 msgstr ""
 
-#: includes/class-two-factor.php:247
+#: includes/class-two-factor.php:580
+msgid "You have logged in successfully."
+msgstr ""
+
+#: includes/class-two-factor.php:592
 msgid "Invalid code."
 msgstr ""
 
-#: includes/class-two-factor.php:254
+#: includes/class-two-factor.php:599
 msgid "That code was not correct. Please try again."
 msgstr ""
 
 #. translators: %s: username.
-#: includes/class-two-factor.php:349
+#: includes/class-two-factor.php:700
 msgid "Two-factor passed: %s"
 msgstr ""
 
 #. translators: %s: username.
-#: includes/class-two-factor.php:351
+#: includes/class-two-factor.php:702
 msgid "Two-factor failed: %s"
 msgstr ""
 
-#: includes/class-user-profile.php:46
+#: includes/class-user-profile.php:44
+msgid "Your passkeys cannot be used to sign in on this site right now because passkey support is unavailable. Set up an authenticator app or backup codes so your account still has a second factor."
+msgstr ""
+
+#: includes/class-user-profile.php:66
 msgid "Remove this passkey?"
 msgstr ""
 
-#: includes/class-user-profile.php:47
+#: includes/class-user-profile.php:67
 msgid "Turn off your authenticator app? Your account will no longer ask for a code at sign-in."
 msgstr ""
 
-#: includes/class-user-profile.php:48
+#: includes/class-user-profile.php:68
 msgid "Generate new backup codes? Your existing codes stop working immediately."
 msgstr ""
 
-#: includes/class-user-profile.php:49
+#: includes/class-user-profile.php:69
 msgid "Could not add passkey."
 msgstr ""
 
-#: includes/class-user-profile.php:50
+#: includes/class-user-profile.php:70
 msgid "Save these codes now - each works once and they will not be shown again."
+msgstr ""
+
+#: includes/class-user-profile.php:71
+msgid "That did not work. Reload the page and try again."
+msgstr ""
+
+#: includes/class-user-profile.php:72
+msgid "Could not reach the site. Check your connection, reload the page and try again."
 msgstr ""

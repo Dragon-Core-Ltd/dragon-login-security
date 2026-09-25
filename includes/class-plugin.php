@@ -65,6 +65,11 @@ final class Plugin {
 
 		add_action( 'dragonloginsecurity_prune_lockouts', array( $this, 'prune_lockouts' ) );
 
+		// When a site is deleted on a network, drop its credential/lockout tables
+		// with it. Otherwise the orphaned credentials table lingers and a passkey
+		// on the removed site would keep counting as network enrolment forever.
+		add_filter( 'wpmu_drop_tables', array( $this, 'drop_site_tables' ) );
+
 		( new Limit_Login() )->hook();
 		( new Two_Factor() )->hook();
 		new Integration();
@@ -83,6 +88,21 @@ final class Plugin {
 			( new Admin() )->hook();
 		}
 		( new Pro_Pointer() )->init_hooks();
+	}
+
+	/**
+	 * Add this plugin's per-site tables to the list core drops when a network
+	 * site is deleted. During this filter $wpdb is switched to the site being
+	 * removed, so the table helpers name that site's tables.
+	 *
+	 * @param string[] $tables Tables core will drop for the site.
+	 * @return string[]
+	 */
+	public function drop_site_tables( $tables ): array {
+		$tables   = is_array( $tables ) ? $tables : array();
+		$tables[] = self::credentials_table();
+		$tables[] = self::lockouts_table();
+		return $tables;
 	}
 
 	/**

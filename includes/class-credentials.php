@@ -63,6 +63,110 @@ class Credentials {
 	}
 
 	/**
+	 * Whether a user has a passkey in any site's credentials table on this
+	 * network. Sites where the plugin never ran have no table and are skipped.
+	 *
+	 * @param int $user_id User id.
+	 * @return bool
+	 */
+	public static function user_has_any_on_network( int $user_id ): bool {
+		global $wpdb;
+		$tables = self::network_tables();
+		if ( empty( $tables ) ) {
+			return false;
+		}
+		$sql  = implode( ' UNION ALL ', array_fill( 0, count( $tables ), '(SELECT 1 FROM %i WHERE user_id = %d LIMIT 1)' ) ) . ' LIMIT 1';
+		$args = array();
+		foreach ( $tables as $table ) {
+			$args[] = $table;
+			$args[] = $user_id;
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Every table name and id is a placeholder; the SQL is only repeated placeholder groups. Results must be current.
+		return null !== $wpdb->get_var( $wpdb->prepare( $sql, $args ) );
+	}
+
+	/**
+	 * Ids of the network sites whose credentials table holds a passkey for a
+	 * user. Empty on a single site. Used only to point a user at the site where
+	 * their passkey can be verified; it never counts as a verified factor.
+	 *
+	 * @param int $user_id User id.
+	 * @return int[]
+	 */
+	public static function network_site_ids_for_user( int $user_id ): array {
+		global $wpdb;
+		if ( ! is_multisite() ) {
+			return array();
+		}
+		$tables = self::network_tables();
+		if ( empty( $tables ) ) {
+			return array();
+		}
+		$sql  = implode( ' UNION ALL ', array_fill( 0, count( $tables ), '(SELECT %s AS t FROM %i WHERE user_id = %d LIMIT 1)' ) );
+		$args = array();
+		foreach ( $tables as $table ) {
+			$args[] = $table;
+			$args[] = $table;
+			$args[] = $user_id;
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Every table name and id is a placeholder; the SQL is only repeated placeholder groups. Results must be current.
+		$hits = (array) $wpdb->get_col( $wpdb->prepare( $sql, $args ) );
+
+		$base = (string) $wpdb->base_prefix;
+		$ids  = array();
+		foreach ( $hits as $table ) {
+			if ( ! is_string( $table ) || ! in_array( $table, $tables, true ) ) {
+				continue;
+			}
+			$rest = substr( $table, strlen( $base ) );
+			$id   = 1 === preg_match( '/^([0-9]+)_/', $rest, $m ) ? (int) $m[1] : (int) get_main_site_id();
+			if ( $id > 0 ) {
+				$ids[ $id ] = $id;
+			}
+		}
+		return array_values( $ids );
+	}
+
+	/**
+	 * Delete a user's passkeys from every site on the network (recovery), or
+	 * from this site only on a single site.
+	 *
+	 * @param int $user_id User id.
+	 */
+	public static function delete_for_user_on_network( int $user_id ): void {
+		global $wpdb;
+		if ( ! is_multisite() ) {
+			self::delete_for_user( $user_id );
+			return;
+		}
+		foreach ( self::network_tables() as $table ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Write to the plugin's custom tables.
+			$wpdb->delete( $table, array( 'user_id' => $user_id ), array( '%d' ) );
+		}
+	}
+
+	/**
+	 * Every site's credentials table that exists on this network.
+	 *
+	 * @return string[]
+	 */
+	private static function network_tables(): array {
+		global $wpdb;
+		$base = (string) $wpdb->base_prefix;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema lookup; must be current so a newly enrolled site counts at once.
+		$found   = (array) $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $base ) . '%' . $wpdb->esc_like( 'dls_credentials' ) ) );
+		$pattern = '/^' . preg_quote( $base, '/' ) . '(?:[0-9]+_)?dls_credentials$/';
+		return array_values(
+			array_filter(
+				$found,
+				static function ( $table ) use ( $pattern ) {
+					return is_string( $table ) && 1 === preg_match( $pattern, $table );
+				}
+			)
+		);
+	}
+
+	/**
 	 * Credential-id strings for a user (for allow/exclude lists).
 	 *
 	 * @param int $user_id User id.

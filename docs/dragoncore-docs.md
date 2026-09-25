@@ -6,7 +6,7 @@ Brute-force protection and modern two-factor authentication - passkeys, authenti
 WordPress 6.2+, PHP 8.0+. Passkeys require HTTPS (any modern device with a screen lock can create one). Passkey verification uses the bundled lbuchs/WebAuthn library (MIT), shipped in the plugin's `vendor/` folder; if that folder is ever missing from an install, passkeys are switched off cleanly (a notice appears on the settings screen) while authenticator apps and backup codes keep working. Every screen, email and notice is translatable; translation files in the plugin's `languages/` folder load automatically.
 
 ## Brute-force protection
-On automatically. Failed logins trigger escalating lockouts per IP; allow/deny lists live under **Settings → Login Security**.
+On automatically. Failed logins trigger escalating lockouts per IP; allow/deny lists live under **Settings → Login Security**. A successful sign-in clears only that account's own failed attempts from the address, so failures against other usernames keep counting toward the lockout.
 
 **Getting the client IP right behind a proxy or CDN.** Proxy-header trust is **off by default** - the plugin uses the direct connection address (`REMOTE_ADDR`), which a visitor can't forge. Only enable **Trust X-Forwarded-For for the client IP** if your site genuinely sits behind a reverse proxy, load balancer or CDN (Cloudflare, a managed host's edge, and the like); otherwise an attacker can spoof the header to dodge a lockout or lock out someone else. When you turn it on, also fill in **Trusted proxy IPs / ranges** - your proxy/CDN addresses, one IP or CIDR per line. The real client is then taken as the first `X-Forwarded-For` entry that is *not* one of yours, walking the chain from the right so a forged prefix can't win. Leave it empty only if a single proxy sits in front of the site, in which case the right-most forwarded address is used.
 
@@ -16,7 +16,11 @@ Each user enrols from **Users → Profile → Login Security**:
 - **Authenticator app (TOTP)** - works with Google Authenticator, 1Password, Authy, any RFC 6238 app.
 - **Backup codes** - single-use recovery codes; download them when enrolling.
 
-Security property worth knowing: **no auth cookie is issued until the second factor passes** - the gate sits at WordPress's `authenticate` step and covers XML-RPC too, a path some 2FA plugins have historically missed.
+Security property worth knowing: **no auth cookie is issued until the second factor passes** - the gate sits at WordPress's `authenticate` step and covers XML-RPC too (including multicall requests), a path some 2FA plugins have historically missed. Application passwords remain the way to give scripts and apps access to a two-factor account.
+
+Sign-in forms outside wp-login.php, such as the WooCommerce **My Account** page, hand over to the two-factor screen and return to the page the sign-in started from. The session-expiry popup in wp-admin asks for the second factor too and closes itself when it passes.
+
+**Multisite:** when Login Security is network-activated, a passkey registered on any site in the network counts as two-factor for that account everywhere on the network. If it is activated on individual sites instead, only those sites ask for a second factor - a site where the plugin is not active signs the account in with the password alone - so network-activate it to protect every site. The sign-in screen on another site offers that site's own passkeys, the authenticator app and backup codes, so users who move between sites should also set up an authenticator app. If an account's only passkeys are on other sites, the sign-in screen lists those sites with a link to sign in there: on a network that shares sign-in cookies (subdirectory, or subdomains under a shared cookie domain) that also signs the user in here; otherwise the user can add an authenticator app or backup codes on that site, which work network-wide, or ask an administrator. The listing is guidance only - the site still refuses sign-in without one of its own verified factors.
 
 ## Locked out?
 Use a backup code on the two-factor screen. If none remain, an administrator can run the escape hatch on the server:

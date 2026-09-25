@@ -107,11 +107,10 @@ class Limit_Login {
 	 * Record a failed login and, at a tier boundary, apply a lockout.
 	 *
 	 * @param string $username Attempted username.
-	 * @param mixed  $error    WP error (unused).
+	 * @param mixed  $error    WP error from the failed attempt.
 	 * @return int Current failure count.
 	 */
 	public function on_failure( string $username, $error = null ): int {
-		unset( $error );
 		$ip = IP::current();
 		if ( '' === $ip || $this->in_list( $ip, 'allow' ) ) {
 			return 0;
@@ -120,6 +119,15 @@ class Limit_Login {
 		$key   = 'dragonloginsecurity_fail_' . md5( $ip );
 		$count = (int) get_transient( $key ) + 1;
 		set_transient( $key, $count, self::WINDOW );
+
+		// The address total decides lockouts; this per-username share of it is
+		// what a later successful sign-in by that same account may forgive. No
+		// share is kept for attempts that never reached an account.
+		$code = $error instanceof \WP_Error ? $error->get_error_code() : '';
+		if ( ! in_array( $code, array( 'invalid_username', 'invalid_email', 'dragonloginsecurity_locked' ), true ) ) {
+			$user_key = $this->user_key( $ip, $username );
+			set_transient( $user_key, (int) get_transient( $user_key ) + 1, self::WINDOW );
+		}
 
 		$this->emit( 'user.login_failed', $ip, $username, $count );
 
@@ -144,18 +152,93 @@ class Limit_Login {
 	}
 
 	/**
-	 * Clear counters on a successful login.
+	 * On a successful login, forget the failures this account made from this
+	 * address. Failures against other usernames keep counting toward the
+	 * address lockout.
 	 *
 	 * @param string    $user_login Username.
 	 * @param \WP_User  $user       User.
 	 */
 	public function on_success( string $user_login, $user = null ): void {
-		unset( $user_login, $user );
-		$this->clear( IP::current() );
+		if ( $user instanceof \WP_User ) {
+			$this->clear_user( IP::current(), $user );
+		}
+		unset( $user_login );
 	}
 
 	/**
-	 * Clear failure + lock state for an IP.
+	 * Forget the failures recorded from an address against one account (by its
+	 * login or email), and take them off the address total. The lock itself is
+	 * left to expire.
+	 *
+	 * An identifier that also names a different account (a username that is
+	 * someone else's email address) is skipped, since its failures may have been
+	 * against that other account.
+	 *
+	 * @param string   $ip   IP.
+	 * @param \WP_User $user The account that signed in.
+	 */
+	public function clear_user( string $ip, \WP_User $user ): void {
+		if ( '' === $ip ) {
+			return;
+		}
+
+		$names = array();
+		if ( '' !== (string) $user->user_login ) {
+			$other = get_user_by( 'email', $user->user_login );
+			if ( ! $other || (int) $other->ID === (int) $user->ID ) {
+				$names[] = $user->user_login;
+			}
+		}
+		if ( '' !== (string) $user->user_email ) {
+			$other = get_user_by( 'login', $user->user_email );
+			if ( ! $other || (int) $other->ID === (int) $user->ID ) {
+				$names[] = $user->user_email;
+			}
+		}
+
+		$forgiven = 0;
+		foreach ( array_unique( array_map( array( $this, 'normalise_username' ), $names ) ) as $name ) {
+			$user_key  = $this->user_key( $ip, $name );
+			$forgiven += (int) get_transient( $user_key );
+			delete_transient( $user_key );
+		}
+		if ( $forgiven <= 0 ) {
+			return;
+		}
+
+		$key       = 'dragonloginsecurity_fail_' . md5( $ip );
+		$remaining = (int) get_transient( $key ) - $forgiven;
+		if ( $remaining > 0 ) {
+			set_transient( $key, $remaining, self::WINDOW );
+		} else {
+			delete_transient( $key );
+		}
+	}
+
+	/**
+	 * Transient key for one address + username failure counter.
+	 *
+	 * @param string $ip       IP.
+	 * @param string $username Username or email as typed.
+	 * @return string
+	 */
+	private function user_key( string $ip, string $username ): string {
+		return 'dragonloginsecurity_failu_' . md5( $ip . '|' . $this->normalise_username( $username ) );
+	}
+
+	/**
+	 * Logins and emails match case-insensitively, so count them that way.
+	 *
+	 * @param string $username Username or email.
+	 * @return string
+	 */
+	private function normalise_username( string $username ): string {
+		return strtolower( trim( $username ) );
+	}
+
+	/**
+	 * Clear all failure + lock state for an IP (administrator unlock).
 	 *
 	 * @param string $ip IP.
 	 */

@@ -23,6 +23,26 @@ class User_Profile {
 		add_action( 'show_user_profile', array( $this, 'render' ) );
 		add_action( 'edit_user_profile', array( $this, 'render' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
+		add_action( 'admin_notices', array( $this, 'unusable_passkey_notice' ) );
+	}
+
+	/**
+	 * Warn an admin whose account has passkeys that cannot be used because the
+	 * WebAuthn library is not loaded, so a passkey is not silently treated as an
+	 * active factor. Their passkey no longer counts as a second factor until the
+	 * library returns; another factor should be set up.
+	 */
+	public function unusable_passkey_notice(): void {
+		if ( WebAuthn::available() ) {
+			return;
+		}
+		$user_id = get_current_user_id();
+		if ( $user_id <= 0 || ! Provider_Passkey::has_stored_credentials( $user_id ) ) {
+			return;
+		}
+		echo '<div class="notice notice-warning"><p>';
+		echo esc_html__( 'Your passkeys cannot be used to sign in on this site right now because passkey support is unavailable. Set up an authenticator app or backup codes so your account still has a second factor.', 'dragon-login-security' );
+		echo '</p></div>';
 	}
 
 	/**
@@ -48,6 +68,8 @@ class User_Profile {
 					'confirmRegen'   => __( 'Generate new backup codes? Your existing codes stop working immediately.', 'dragon-login-security' ),
 					'passkeyError'   => __( 'Could not add passkey.', 'dragon-login-security' ),
 					'saveCodes'      => __( 'Save these codes now - each works once and they will not be shown again.', 'dragon-login-security' ),
+					'requestFailed'  => __( 'That did not work. Reload the page and try again.', 'dragon-login-security' ),
+					'networkError'   => __( 'Could not reach the site. Check your connection, reload the page and try again.', 'dragon-login-security' ),
 				),
 			)
 		);
