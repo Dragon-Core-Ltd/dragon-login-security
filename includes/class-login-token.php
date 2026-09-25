@@ -55,7 +55,9 @@ class Login_Token {
 
 	/**
 	 * Verify a token against an expected user. Constant work; single-use
-	 * (consumed on success or expiry); rejects unknown/expired/wrong-user.
+	 * (consumed atomically on success or expiry, so only one of several
+	 * parallel requests carrying the same token passes); rejects
+	 * unknown/expired/wrong-user.
 	 *
 	 * @param string $token   Token.
 	 * @param int    $user_id Expected user id.
@@ -74,8 +76,13 @@ class Login_Token {
 
 		// Consume on success (single-use) or expiry (cleanup); leave a live token
 		// untouched on a mere user mismatch so the legitimate holder can retry.
+		// Only the request whose delete removed the token may use it: parallel
+		// requests that read the same token lose the delete and are rejected.
 		if ( $valid || $expired ) {
-			delete_transient( self::key( $token ) );
+			$consumed = delete_transient( self::key( $token ) );
+			if ( ! $consumed ) {
+				return false;
+			}
 		}
 
 		return $valid;

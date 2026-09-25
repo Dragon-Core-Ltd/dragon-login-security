@@ -30,7 +30,7 @@ function dragonloginsecurity_uninstall_site(): void {
 
 	// Current names plus the pre-1.0.2 dls_ names, in case a 1.0.1 install was
 	// removed before its 1.0.2 migration ever ran.
-	foreach ( array( 'dragonloginsecurity_db_version', 'dragonloginsecurity_settings', 'dragonloginsecurity_pro_pointer', 'dragonloginsecurity_pro_pointer_events', 'dragonloginsecurity_schema_failure', 'dragonloginsecurity_delete_data_on_uninstall', 'dls_db_version', 'dls_settings' ) as $dragonloginsecurity_option ) {
+	foreach ( array( 'dragonloginsecurity_db_version', 'dragonloginsecurity_settings', 'dragonloginsecurity_pro_pointer', 'dragonloginsecurity_pro_pointer_events', 'dragonloginsecurity_schema_failure', 'dragonloginsecurity_proxy_mismatch', 'dragonloginsecurity_delete_data_on_uninstall', 'dls_db_version', 'dls_settings' ) as $dragonloginsecurity_option ) {
 		delete_option( $dragonloginsecurity_option );
 	}
 
@@ -57,6 +57,6 @@ if ( is_multisite() ) {
 }
 
 // Per-user 2FA meta is global (one row per user regardless of site).
-foreach ( array( 'dls_totp_secret', 'dls_backup_codes', 'dls_2fa_methods', 'dls_backup_codes_confirmed', 'dls_totp_last_step', 'dls_2fa_failures' ) as $dragonloginsecurity_meta ) {
+foreach ( array( 'dls_totp_secret', 'dls_backup_codes', 'dls_2fa_methods', 'dls_backup_codes_confirmed', 'dls_totp_last_step', 'dls_2fa_failures', 'dragonloginsecurity_2fa_lock_mailed' ) as $dragonloginsecurity_meta ) {
 	delete_metadata( 'user', 0, $dragonloginsecurity_meta, '', true );
 }

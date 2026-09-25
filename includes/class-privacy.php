@@ -157,7 +157,7 @@ class Privacy {
 		}
 
 		$removed = false;
-		foreach ( array( 'dls_totp_secret', 'dls_totp_last_step', 'dls_backup_codes', 'dls_backup_codes_confirmed', Two_Factor::CODE_FAILURES_META ) as $key ) {
+		foreach ( array( 'dls_totp_secret', 'dls_totp_last_step', 'dls_backup_codes', 'dls_backup_codes_confirmed', Two_Factor::CODE_FAILURES_META, Two_Factor::CODE_LOCK_MAILED_META ) as $key ) {
 			if ( delete_user_meta( $user->ID, $key ) ) {
 				$removed = true;
 			}

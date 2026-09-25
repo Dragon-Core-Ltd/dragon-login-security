@@ -51,6 +51,14 @@ No. Renaming wp-login.php breaks REST and other login paths and offers little re
 
 For accounts with two-factor enabled, no. A sign-in cookie is issued only after the second factor has passed, so plugins that sign users in directly (single sign-on, social login, magic links, or a password reset that logs the user in) are refused for those accounts, and the user signs in through the login form instead. Accounts without two-factor are not affected. The User Switching plugin is supported. Developers can allow a verified integration with the `dragonloginsecurity_allow_auth_cookie` filter, which receives `false` and the user ID; see the plugin documentation for an example.
 
+= Why was my two-factor step paused, and why did I get an email about it? =
+
+After five incorrect two-factor codes in 15 minutes, the account's two-factor step pauses for up to 15 minutes, and the user is emailed (at most once a day). Only someone who knows the account's password can reach that step, so if the attempts were not yours, change your password: resetting it also ends the pause straight away.
+
+= My site is behind Cloudflare and a load balancer. Which addresses do I list as trusted proxies? =
+
+List only your CDN's ranges. Loopback, private network and carrier-grade NAT addresses (such as a load balancer, or nginx in front of Apache on the same server) are treated as internal hops automatically. If a public address outside your list sends forwarded headers, a warning on the dashboard and in Site Health names it; add it only if you recognise it as your own proxy.
+
 = Does it work with the Dragon Activity Log plugin? =
 
 Yes — when Activity Log is active, login and two-factor events are recorded in its tamper-evident audit. Dragon Login Security works fully without it.

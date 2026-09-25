@@ -122,6 +122,23 @@ class Two_Factor {
 	const CODE_FAILURE_WINDOW = 900;
 
 	/**
+	 * Per-user time of the last "second step failed" email, used to send at most
+	 * one per CODE_LOCK_MAIL_INTERVAL.
+	 */
+	const CODE_LOCK_MAILED_META = 'dragonloginsecurity_2fa_lock_mailed';
+
+	/**
+	 * Minimum seconds between two "second step failed" emails to one user.
+	 */
+	const CODE_LOCK_MAIL_INTERVAL = 86400;
+
+	/**
+	 * Attempts to store an incorrect-code count before giving up and treating
+	 * the account as locked.
+	 */
+	const CODE_RESERVE_TRIES = 5;
+
+	/**
 	 * Constructor.
 	 */
 	public function __construct() {
@@ -154,6 +171,7 @@ class Two_Factor {
 		add_filter( 'authenticate', array( $this, 'hold_cookies_for_challenge' ), PHP_INT_MAX, 1 );
 		add_filter( 'send_auth_cookies', array( $this, 'filter_send_auth_cookies' ), PHP_INT_MAX, 6 );
 		add_action( 'password_reset', array( $this, 'on_password_reset' ), 10, 1 );
+		add_action( 'after_password_reset', array( $this, 'on_password_reset' ), 10, 1 );
 		add_action( 'clear_auth_cookie', array( $this, 'remember_request_cookie' ), PHP_INT_MIN, 0 );
 		add_action( 'set_auth_cookie', array( $this, 'record_session_token' ), 10, 6 );
 		add_action( 'set_logged_in_cookie', array( $this, 'record_session_token' ), 10, 6 );
@@ -191,7 +209,9 @@ class Two_Factor {
 
 	/**
 	 * A password reset proves control of the mailbox, not the second factor, so
-	 * no auth cookie may follow it in the same request.
+	 * no auth cookie may follow it in the same request. It also replaces the
+	 * password behind any incorrect codes, so the account's incorrect-code
+	 * lock is lifted.
 	 *
 	 * @param \WP_User|mixed $user User whose password was reset.
 	 */
@@ -199,6 +219,7 @@ class Two_Factor {
 		if ( $user instanceof \WP_User ) {
 			$this->reset_users[ (int) $user->ID ] = true;
 			unset( $this->cleared[ (int) $user->ID ] );
+			delete_user_meta( (int) $user->ID, self::CODE_FAILURES_META );
 		}
 	}
 
@@ -795,7 +816,10 @@ class Two_Factor {
 			wp_safe_redirect( wp_login_url() );
 			exit;
 		}
-		if ( $this->code_locked( $user_id ) ) {
+		// Each code is counted before it is checked, so parallel submissions can
+		// never test more codes than the cap allows.
+		$attempt = $this->reserve_code_attempt( $user_id );
+		if ( $attempt > self::CODE_FAILURE_LIMIT ) {
 			wp_safe_redirect( self::code_locked_url() );
 			exit;
 		}
@@ -834,8 +858,9 @@ class Two_Factor {
 		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Intentionally firing WordPress core's own wp_login_failed action so brute-force protection (core and other plugins) counts the failed 2FA step.
 		do_action( 'wp_login_failed', $user->user_login, new \WP_Error( 'dragonloginsecurity_2fa_failed', __( 'Invalid code.', 'dragon-login-security' ) ) );
 		$this->emit( '2fa.failed', $user );
-		if ( ! $this->record_code_failure( $user_id ) || $this->code_locked( $user_id ) ) {
+		if ( $attempt >= self::CODE_FAILURE_LIMIT ) {
 			// Too many incorrect codes: the pending sign-in ends here.
+			$this->notify_code_lock( $user );
 			wp_safe_redirect( self::code_locked_url() );
 			exit;
 		}
@@ -898,22 +923,131 @@ class Two_Factor {
 	 * @return bool Whether the count was stored (false means treat as locked).
 	 */
 	public function record_code_failure( int $user_id, int $now = 0 ): bool {
+		return $this->reserve_code_attempt( $user_id, $now ) <= self::CODE_FAILURE_LIMIT;
+	}
+
+	/**
+	 * Count a code attempt against a user before the code is checked, and
+	 * return its number within the current window. The count is written as a
+	 * compare-and-swap on the stored record (core's update_user_meta() with a
+	 * previous value), retried when another request changed it first, so
+	 * parallel requests each get their own number and none is lost. A passed
+	 * code deletes the record.
+	 *
+	 * @param int $user_id User id.
+	 * @param int $now     Current time (0 for now).
+	 * @return int The attempt number, or CODE_FAILURE_LIMIT + 1 when the
+	 *             account is locked or the count could not be stored.
+	 */
+	public function reserve_code_attempt( int $user_id, int $now = 0 ): int {
 		$now    = $now > 0 ? $now : time();
-		$record = get_user_meta( $user_id, self::CODE_FAILURES_META, true );
-		if ( ! is_array( $record ) || ! isset( $record['count'], $record['since'] )
-			|| (int) $record['since'] + self::CODE_FAILURE_WINDOW <= $now ) {
-			$record = array(
-				'count' => 0,
-				'since' => $now,
-			);
+		$closed = self::CODE_FAILURE_LIMIT + 1;
+
+		for ( $try = 0; $try < self::CODE_RESERVE_TRIES; $try++ ) {
+			if ( $try > 0 ) {
+				// A lost compare-and-swap leaves this request's meta cache holding
+				// the stale record, so the retry must read the stored one.
+				wp_cache_delete( $user_id, 'user_meta' );
+			}
+			$record = get_user_meta( $user_id, self::CODE_FAILURES_META, true );
+
+			if ( '' === $record || false === $record ) {
+				$first = array(
+					'count' => 1,
+					'since' => $now,
+				);
+				if ( add_user_meta( $user_id, self::CODE_FAILURES_META, $first, true ) ) {
+					return 1;
+				}
+				continue;
+			}
+
+			if ( ! is_array( $record ) || ! isset( $record['count'], $record['since'] ) ) {
+				return $closed;
+			}
+
+			if ( (int) $record['since'] + self::CODE_FAILURE_WINDOW <= $now ) {
+				$next = array(
+					'count' => 1,
+					'since' => $now,
+				);
+			} elseif ( (int) $record['count'] >= self::CODE_FAILURE_LIMIT ) {
+				return $closed;
+			} else {
+				$next = array(
+					'count' => (int) $record['count'] + 1,
+					'since' => (int) $record['since'],
+				);
+			}
+
+			if ( update_user_meta( $user_id, self::CODE_FAILURES_META, $next, $record ) ) {
+				return $next['count'];
+			}
 		}
-		$record = array(
-			'count' => (int) $record['count'] + 1,
-			'since' => (int) $record['since'],
+
+		return $closed;
+	}
+
+	/**
+	 * Tell a user that someone who knows their password failed the second
+	 * step and the step is now paused. At most one email per
+	 * CODE_LOCK_MAIL_INTERVAL; a failed send is retried on the next lock.
+	 *
+	 * @param \WP_User $user User whose second step was locked.
+	 * @param int      $now  Current time (0 for now).
+	 * @return bool Whether an email was sent.
+	 */
+	public function notify_code_lock( \WP_User $user, int $now = 0 ): bool {
+		$now = $now > 0 ? $now : time();
+		if ( '' === (string) $user->user_email ) {
+			return false;
+		}
+		$last = (int) get_user_meta( (int) $user->ID, self::CODE_LOCK_MAILED_META, true );
+		if ( $last > 0 && $last + self::CODE_LOCK_MAIL_INTERVAL > $now ) {
+			return false;
+		}
+
+		$site    = wp_specialchars_decode( (string) get_bloginfo( 'name' ), ENT_QUOTES );
+		$minutes = (int) ( self::CODE_FAILURE_WINDOW / 60 );
+		$subject = sprintf(
+			/* translators: %s: site name. */
+			__( '[%s] Unsuccessful two-factor sign-in on your account', 'dragon-login-security' ),
+			$site
 		);
-		update_user_meta( $user_id, self::CODE_FAILURES_META, $record );
-		$stored = get_user_meta( $user_id, self::CODE_FAILURES_META, true );
-		return is_array( $stored ) && (int) ( $stored['count'] ?? 0 ) === $record['count'];
+		$lines = array(
+			sprintf(
+				/* translators: %s: username. */
+				__( 'Hello %s,', 'dragon-login-security' ),
+				$user->user_login
+			),
+			sprintf(
+				/* translators: %s: site name. */
+				__( 'Someone signed in to %s with your password, then entered incorrect two-factor codes too many times.', 'dragon-login-security' ),
+				$site
+			),
+			sprintf(
+				/* translators: %s: number of minutes. */
+				_n(
+					'To protect your account, the two-factor step is paused for up to %s minute.',
+					'To protect your account, the two-factor step is paused for up to %s minutes.',
+					$minutes,
+					'dragon-login-security'
+				),
+				number_format_i18n( $minutes )
+			),
+			sprintf(
+				/* translators: %s: password reset address. */
+				__( 'If this was not you, someone else knows your password. Change it now: %s', 'dragon-login-security' ),
+				wp_lostpassword_url()
+			),
+			__( 'Resetting your password also ends the pause.', 'dragon-login-security' ),
+		);
+
+		$sent = wp_mail( $user->user_email, $subject, implode( "\n\n", $lines ) );
+		if ( $sent ) {
+			update_user_meta( (int) $user->ID, self::CODE_LOCK_MAILED_META, $now );
+		}
+		return (bool) $sent;
 	}
 
 	/**

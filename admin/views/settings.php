@@ -59,7 +59,7 @@ $dragonloginsecurity_deny  = ! empty( $dragonloginsecurity_s['deny_ips'] ) ? imp
 						<label for="dls-trusted-proxies"><strong><?php esc_html_e( 'Trusted proxy IPs / ranges (optional)', 'dragon-login-security' ); ?></strong></label>
 					</p>
 					<textarea id="dls-trusted-proxies" name="trusted_proxies" rows="3" class="large-text code" placeholder="173.245.48.0/20&#10;103.21.244.0/22"><?php echo esc_textarea( implode( "\n", (array) ( $dragonloginsecurity_s['trusted_proxies'] ?? array() ) ) ); ?></textarea>
-					<p class="description"><?php esc_html_e( 'One IP or CIDR range per line - your proxy / CDN addresses. When set, forwarded headers are read only from requests that arrive from one of these addresses, and the client IP is the first X-Forwarded-For address that is not one of these. Leave empty if a single proxy sits in front (the rightmost forwarded address is used).', 'dragon-login-security' ); ?></p>
+					<p class="description"><?php esc_html_e( 'One IP or CIDR range per line - your proxy / CDN addresses. When set, forwarded headers are read only from requests that arrive from one of these addresses or from an internal address (loopback, private network or carrier-grade NAT, such as a load balancer or a local web server), and the client IP is the first X-Forwarded-For address, reading from the right, that is neither. Leave empty if a single proxy sits in front (the rightmost forwarded address is used).', 'dragon-login-security' ); ?></p>
 				</td>
 			</tr>
 					<tr>

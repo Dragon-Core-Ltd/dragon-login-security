@@ -26,6 +26,95 @@ class Admin {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
 		add_action( 'admin_notices', array( $this, 'library_notice' ) );
 		add_action( 'admin_notices', array( $this, 'schema_notice' ) );
+		add_action( 'admin_notices', array( $this, 'proxy_notice' ) );
+		add_filter( 'site_status_tests', array( $this, 'site_status_tests' ) );
+	}
+
+	/**
+	 * Explain a recorded proxy mismatch: a public address outside the trusted
+	 * ranges sent forwarded headers. The address may be an unlisted proxy or a
+	 * visitor sending the headers itself, so the text asks the administrator to
+	 * add it only if they recognise it.
+	 *
+	 * @param array{ip: string, time: int} $mismatch Recorded mismatch.
+	 * @return string
+	 */
+	public static function proxy_mismatch_text( array $mismatch ): string {
+		return sprintf(
+			/* translators: 1: IP address, 2: UTC date and time it was last seen */
+			__( 'Requests from %1$s (last seen %2$s UTC) sent forwarded client-address headers, but that address is not in the trusted proxy list, so the headers were ignored and every visitor behind it shares that one address for lockouts. If %1$s is your load balancer, CDN or reverse proxy, add it (or its range) under Settings > Login Security > Trusted proxy IPs / ranges. If you do not recognise it, no action is needed: it may be a visitor sending the headers directly.', 'dragon-login-security' ),
+			$mismatch['ip'],
+			wp_date( 'Y-m-d H:i', (int) $mismatch['time'], new \DateTimeZone( 'UTC' ) )
+		);
+	}
+
+	/**
+	 * Show the proxy-mismatch warning on the dashboard and the plugin's
+	 * settings screen.
+	 */
+	public function proxy_notice(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		if ( ! $screen || ! in_array( $screen->id, array( 'dashboard', 'settings_page_dragon-login-security' ), true ) ) {
+			return;
+		}
+		$mismatch = IP::proxy_mismatch();
+		if ( null === $mismatch ) {
+			return;
+		}
+		echo '<div class="notice notice-warning"><p>';
+		echo esc_html( __( 'Dragon Login Security:', 'dragon-login-security' ) . ' ' . self::proxy_mismatch_text( $mismatch ) );
+		echo '</p></div>';
+	}
+
+	/**
+	 * Register the proxy-configuration Site Health test.
+	 *
+	 * @param array $tests Site Health tests.
+	 * @return array
+	 */
+	public function site_status_tests( $tests ): array {
+		$tests                                        = is_array( $tests ) ? $tests : array();
+		$tests['direct']['dragonloginsecurity_proxy'] = array(
+			'label' => __( 'Login Security proxy configuration', 'dragon-login-security' ),
+			'test'  => array( __CLASS__, 'proxy_site_health' ),
+		);
+		return $tests;
+	}
+
+	/**
+	 * Site Health result for the trusted-proxy configuration.
+	 *
+	 * @return array
+	 */
+	public static function proxy_site_health(): array {
+		$mismatch = IP::proxy_mismatch();
+		$result   = array(
+			'label'       => __( 'Login Security reads client addresses as configured', 'dragon-login-security' ),
+			'status'      => 'good',
+			'badge'       => array(
+				'label' => __( 'Security', 'dragon-login-security' ),
+				'color' => 'blue',
+			),
+			'description' => '<p>' . esc_html__( 'No request has sent forwarded client-address headers from an address outside the trusted proxy list.', 'dragon-login-security' ) . '</p>',
+			'actions'     => '',
+			'test'        => 'dragonloginsecurity_proxy',
+		);
+		if ( null === $mismatch ) {
+			return $result;
+		}
+		$result['label']          = __( 'Login Security may be missing a trusted proxy', 'dragon-login-security' );
+		$result['status']         = 'recommended';
+		$result['badge']['color'] = 'orange';
+		$result['description']    = '<p>' . esc_html( self::proxy_mismatch_text( $mismatch ) ) . '</p>';
+		$result['actions']        = sprintf(
+			'<p><a href="%s">%s</a></p>',
+			esc_url( admin_url( 'options-general.php?page=dragon-login-security' ) ),
+			esc_html__( 'Review trusted proxies', 'dragon-login-security' )
+		);
+		return $result;
 	}
 
 	/**
@@ -126,6 +215,10 @@ class Admin {
 			'deny_ips'        => $this->parse_ips( isset( $_POST['deny_ips'] ) ? wp_unslash( $_POST['deny_ips'] ) : '' ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Parsed + validated line-by-line in parse_ips().
 		);
 		$saved    = self::persist_settings( $settings );
+		if ( $saved ) {
+			// The ranges were reviewed; report only mismatches seen from now on.
+			delete_option( IP::MISMATCH_OPTION );
+		}
 
 		/*
 		 * The uninstall preference is a separate option, so changing only the

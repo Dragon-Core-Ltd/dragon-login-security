@@ -19,15 +19,50 @@ if ( ! defined( 'ABSPATH' ) ) {
 class IP {
 
 	/**
+	 * Addresses that are never a visitor's public address: loopback, private
+	 * (RFC 1918, IPv6 unique-local) and carrier-grade NAT. A request from one
+	 * of these came through the server's own network, such as a load balancer
+	 * or a web server proxying to another on the same host.
+	 */
+	const INTERNAL_RANGES = array(
+		'127.0.0.0/8',
+		'10.0.0.0/8',
+		'172.16.0.0/12',
+		'192.168.0.0/16',
+		'100.64.0.0/10',
+		'::1/128',
+		'fc00::/7',
+	);
+
+	/**
+	 * Option holding the last public address seen sending forwarded headers
+	 * from outside the trusted-proxy ranges.
+	 */
+	const MISMATCH_OPTION = 'dragonloginsecurity_proxy_mismatch';
+
+	/**
+	 * Seconds before the same address is recorded again.
+	 */
+	const MISMATCH_THROTTLE = 3600;
+
+	/**
+	 * Seconds a recorded address stays reportable.
+	 */
+	const MISMATCH_TTL = 604800;
+
+	/**
 	 * Get the client IP for the current request.
 	 *
 	 * REMOTE_ADDR is the only value trusted by default. Proxy headers are
 	 * client-spoofable, so they are consulted only when `trust_proxy` is enabled.
 	 * With trusted-proxy ranges configured, the headers are read only when
-	 * REMOTE_ADDR is one of those proxies (a direct connection keeps its own
-	 * address), and the X-Forwarded-For chain, with REMOTE_ADDR as its last hop,
-	 * is walked from the right past every trusted hop: the first untrusted hop
-	 * is the client. The walk stops at a malformed hop and falls back to the
+	 * REMOTE_ADDR is one of those proxies or an internal address (loopback,
+	 * private or carrier-grade NAT, see INTERNAL_RANGES), so a direct public
+	 * connection keeps its own address. The X-Forwarded-For chain, with
+	 * REMOTE_ADDR as its last hop, is walked from the right past every trusted
+	 * or internal hop: the first other hop is the client. A public REMOTE_ADDR
+	 * outside the ranges that sends forwarded headers is recorded for the
+	 * misconfiguration notice. The walk stops at a malformed hop and falls back to the
 	 * last trusted one. X-Real-IP is used only when X-Forwarded-For is absent,
 	 * under the same REMOTE_ADDR check. With no ranges configured, a single
 	 * proxy is assumed and its rightmost forwarded address is used.
@@ -47,7 +82,10 @@ class IP {
 		}
 
 		$trusted = self::trusted_proxies();
-		if ( ! empty( $trusted ) && ( '' === $remote || ! self::ip_in_ranges( $remote, $trusted ) ) ) {
+		if ( ! empty( $trusted ) && ( '' === $remote || ! self::is_proxy_hop( $remote, $trusted ) ) ) {
+			if ( '' !== $remote && ( ! empty( $_SERVER['HTTP_X_FORWARDED_FOR'] ) || ! empty( $_SERVER['HTTP_X_REAL_IP'] ) ) ) {
+				self::record_mismatch( $remote );
+			}
 			return $remote;
 		}
 
@@ -73,11 +111,89 @@ class IP {
 				return $client;
 			}
 			$client = $hops[ $i ];
-			if ( ! self::ip_in_ranges( $client, $trusted ) ) {
+			if ( ! self::is_proxy_hop( $client, $trusted ) ) {
 				return $client;
 			}
 		}
 		return $client;
+	}
+
+	/**
+	 * Whether an address is a hop that may forward a request: a configured
+	 * trusted proxy or an internal address.
+	 *
+	 * @param string   $ip      IP address.
+	 * @param string[] $trusted Trusted-proxy ranges.
+	 * @return bool
+	 */
+	private static function is_proxy_hop( string $ip, array $trusted ): bool {
+		return self::ip_in_ranges( $ip, $trusted ) || self::is_internal( $ip );
+	}
+
+	/**
+	 * Whether an address is loopback, private or carrier-grade NAT. An
+	 * IPv4-mapped IPv6 address is judged by its IPv4 part.
+	 *
+	 * @param string $ip IP address.
+	 * @return bool
+	 */
+	public static function is_internal( string $ip ): bool {
+		if ( 1 === preg_match( '/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i', $ip, $m ) ) {
+			$ip = $m[1];
+		}
+		return self::ip_in_ranges( $ip, self::INTERNAL_RANGES );
+	}
+
+	/**
+	 * Remember a public address that sent forwarded headers from outside the
+	 * trusted-proxy ranges. Written at most once per MISMATCH_THROTTLE for the
+	 * same address.
+	 *
+	 * @param string $remote REMOTE_ADDR.
+	 */
+	private static function record_mismatch( string $remote ): void {
+		$now  = time();
+		$last = get_option( self::MISMATCH_OPTION );
+		if ( is_array( $last ) && ( $last['ip'] ?? '' ) === $remote && (int) ( $last['time'] ?? 0 ) + self::MISMATCH_THROTTLE > $now ) {
+			return;
+		}
+		update_option(
+			self::MISMATCH_OPTION,
+			array(
+				'ip'   => $remote,
+				'time' => $now,
+			),
+			false
+		);
+	}
+
+	/**
+	 * The recorded proxy misconfiguration, while it still applies: proxy trust
+	 * is on, ranges are set, the address is still outside them, and it was
+	 * seen within MISMATCH_TTL.
+	 *
+	 * @param int $now Current time (0 for now).
+	 * @return array{ip: string, time: int}|null
+	 */
+	public static function proxy_mismatch( int $now = 0 ): ?array {
+		$now      = $now > 0 ? $now : time();
+		$settings = get_option( 'dragonloginsecurity_settings', array() );
+		if ( ! is_array( $settings ) || empty( $settings['trust_proxy'] ) ) {
+			return null;
+		}
+		$trusted = self::trusted_proxies();
+		$record  = get_option( self::MISMATCH_OPTION );
+		if ( empty( $trusted ) || ! is_array( $record ) || empty( $record['ip'] ) || ! is_string( $record['ip'] ) ) {
+			return null;
+		}
+		$time = (int) ( $record['time'] ?? 0 );
+		if ( $time + self::MISMATCH_TTL <= $now || self::is_proxy_hop( $record['ip'], $trusted ) ) {
+			return null;
+		}
+		return array(
+			'ip'   => $record['ip'],
+			'time' => $time,
+		);
 	}
 
 	/**

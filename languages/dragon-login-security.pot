@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-25T08:28:29+00:00\n"
+"POT-Creation-Date: 2026-09-25T09:01:27+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: dragon-login-security\n"
@@ -17,7 +17,7 @@ msgstr ""
 #. Plugin Name of the plugin
 #: dragon-login-security.php
 #: admin/views/settings.php:20
-#: includes/class-admin.php:89
+#: includes/class-admin.php:178
 #: includes/class-privacy.php:37
 #: includes/class-privacy.php:52
 #: includes/class-privacy.php:66
@@ -213,7 +213,7 @@ msgid "Trusted proxy IPs / ranges (optional)"
 msgstr ""
 
 #: admin/views/settings.php:62
-msgid "One IP or CIDR range per line - your proxy / CDN addresses. When set, forwarded headers are read only from requests that arrive from one of these addresses, and the client IP is the first X-Forwarded-For address that is not one of these. Leave empty if a single proxy sits in front (the rightmost forwarded address is used)."
+msgid "One IP or CIDR range per line - your proxy / CDN addresses. When set, forwarded headers are read only from requests that arrive from one of these addresses or from an internal address (loopback, private network or carrier-grade NAT, such as a load balancer or a local web server), and the client IP is the first X-Forwarded-For address, reading from the right, that is neither. Leave empty if a single proxy sits in front (the rightmost forwarded address is used)."
 msgstr ""
 
 #: admin/views/settings.php:66
@@ -241,32 +241,65 @@ msgstr ""
 msgid "Import from %s"
 msgstr ""
 
-#. translators: 1: list of table names, 2: UTC date and time of the last attempt
-#: includes/class-admin.php:47
-msgid "Dragon Login Security could not create its database tables (%1$s; last attempt %2$s UTC). Check that the database user has the CREATE privilege, then deactivate and reactivate the plugin to retry."
+#. translators: 1: IP address, 2: UTC date and time it was last seen
+#: includes/class-admin.php:45
+msgid "Requests from %1$s (last seen %2$s UTC) sent forwarded client-address headers, but that address is not in the trusted proxy list, so the headers were ignored and every visitor behind it shares that one address for lockouts. If %1$s is your load balancer, CDN or reverse proxy, add it (or its range) under Settings > Login Security > Trusted proxy IPs / ranges. If you do not recognise it, no action is needed: it may be a visitor sending the headers directly."
 msgstr ""
 
 #: includes/class-admin.php:68
-msgid "Dragon Login Security: the bundled WebAuthn library (vendor/lbuchs/webauthn) is missing, so passkeys are unavailable. Authenticator apps and backup codes still work. Reinstall the plugin to restore passkeys."
+msgid "Dragon Login Security:"
 msgstr ""
 
-#: includes/class-admin.php:90
-msgid "Login Security"
+#: includes/class-admin.php:81
+msgid "Login Security proxy configuration"
 msgstr ""
 
-#: includes/class-admin.php:107
-msgid "Settings"
+#: includes/class-admin.php:95
+msgid "Login Security reads client addresses as configured"
+msgstr ""
+
+#: includes/class-admin.php:98
+msgid "Security"
+msgstr ""
+
+#: includes/class-admin.php:101
+msgid "No request has sent forwarded client-address headers from an address outside the trusted proxy list."
+msgstr ""
+
+#: includes/class-admin.php:108
+msgid "Login Security may be missing a trusted proxy"
+msgstr ""
+
+#: includes/class-admin.php:115
+msgid "Review trusted proxies"
+msgstr ""
+
+#. translators: 1: list of table names, 2: UTC date and time of the last attempt
+#: includes/class-admin.php:136
+msgid "Dragon Login Security could not create its database tables (%1$s; last attempt %2$s UTC). Check that the database user has the CREATE privilege, then deactivate and reactivate the plugin to retry."
 msgstr ""
 
 #: includes/class-admin.php:157
+msgid "Dragon Login Security: the bundled WebAuthn library (vendor/lbuchs/webauthn) is missing, so passkeys are unavailable. Authenticator apps and backup codes still work. Reinstall the plugin to restore passkeys."
+msgstr ""
+
+#: includes/class-admin.php:179
+msgid "Login Security"
+msgstr ""
+
+#: includes/class-admin.php:196
+msgid "Settings"
+msgstr ""
+
+#: includes/class-admin.php:250
 msgid "Settings could not be saved. Your previous settings are still in effect; try again."
 msgstr ""
 
-#: includes/class-admin.php:159
+#: includes/class-admin.php:252
 msgid "Settings saved, but the \"delete data on uninstall\" preference could not be stored and is unchanged. Try again."
 msgstr ""
 
-#: includes/class-admin.php:161
+#: includes/class-admin.php:254
 msgid "Settings saved."
 msgstr ""
 
@@ -499,37 +532,68 @@ msgstr ""
 msgid "You are not allowed to do that."
 msgstr ""
 
-#: includes/class-two-factor.php:551
+#: includes/class-two-factor.php:572
 msgid "Two-factor authentication is required for this account. Create an application password for programmatic access."
 msgstr ""
 
-#: includes/class-two-factor.php:581
+#: includes/class-two-factor.php:602
 msgid "Authenticator secret could not be decrypted and was cleared."
 msgstr ""
 
-#: includes/class-two-factor.php:821
+#: includes/class-two-factor.php:845
 msgid "You have logged in successfully."
 msgstr ""
 
-#: includes/class-two-factor.php:835
+#: includes/class-two-factor.php:859
 msgid "Invalid code."
 msgstr ""
 
-#: includes/class-two-factor.php:847
+#: includes/class-two-factor.php:872
 msgid "That code was not correct. Please try again."
 msgstr ""
 
-#: includes/class-two-factor.php:937
+#. translators: %s: site name.
+#: includes/class-two-factor.php:1014
+msgid "[%s] Unsuccessful two-factor sign-in on your account"
+msgstr ""
+
+#. translators: %s: username.
+#: includes/class-two-factor.php:1020
+msgid "Hello %s,"
+msgstr ""
+
+#. translators: %s: site name.
+#: includes/class-two-factor.php:1025
+msgid "Someone signed in to %s with your password, then entered incorrect two-factor codes too many times."
+msgstr ""
+
+#. translators: %s: number of minutes.
+#: includes/class-two-factor.php:1030
+msgid "To protect your account, the two-factor step is paused for up to %s minute."
+msgid_plural "To protect your account, the two-factor step is paused for up to %s minutes."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %s: password reset address.
+#: includes/class-two-factor.php:1040
+msgid "If this was not you, someone else knows your password. Change it now: %s"
+msgstr ""
+
+#: includes/class-two-factor.php:1043
+msgid "Resetting your password also ends the pause."
+msgstr ""
+
+#: includes/class-two-factor.php:1071
 msgid "Too many incorrect codes. Please try again later."
 msgstr ""
 
 #. translators: %s: username.
-#: includes/class-two-factor.php:1037
+#: includes/class-two-factor.php:1171
 msgid "Two-factor passed: %s"
 msgstr ""
 
 #. translators: %s: username.
-#: includes/class-two-factor.php:1039
+#: includes/class-two-factor.php:1173
 msgid "Two-factor failed: %s"
 msgstr ""
 

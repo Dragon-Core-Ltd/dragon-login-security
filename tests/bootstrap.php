@@ -432,8 +432,18 @@ if ( ! function_exists( 'add_filter' ) ) {
 $GLOBALS['dls_test_transients'] = array();
 
 if ( ! function_exists( 'get_transient' ) ) {
+	/**
+	 * $GLOBALS['dls_test_after_transient_read'] is a callable run once right
+	 * after a read, modelling a concurrent request acting on the same key.
+	 */
 	function get_transient( $key ) {
-		return array_key_exists( $key, $GLOBALS['dls_test_transients'] ) ? $GLOBALS['dls_test_transients'][ $key ] : false;
+		$value = array_key_exists( $key, $GLOBALS['dls_test_transients'] ) ? $GLOBALS['dls_test_transients'][ $key ] : false;
+		if ( isset( $GLOBALS['dls_test_after_transient_read'] ) && is_callable( $GLOBALS['dls_test_after_transient_read'] ) ) {
+			$callback                                  = $GLOBALS['dls_test_after_transient_read'];
+			$GLOBALS['dls_test_after_transient_read'] = null;
+			$callback();
+		}
+		return $value;
 	}
 }
 if ( ! function_exists( 'set_transient' ) ) {
@@ -444,9 +454,13 @@ if ( ! function_exists( 'set_transient' ) ) {
 	}
 }
 if ( ! function_exists( 'delete_transient' ) ) {
+	/**
+	 * Mirrors core: false when there was nothing to delete.
+	 */
 	function delete_transient( $key ) {
+		$existed = array_key_exists( $key, $GLOBALS['dls_test_transients'] );
 		unset( $GLOBALS['dls_test_transients'][ $key ] );
-		return true;
+		return $existed;
 	}
 }
 
@@ -540,9 +554,51 @@ if ( ! function_exists( 'add_user_meta' ) ) {
 	}
 }
 if ( ! function_exists( 'delete_user_meta' ) ) {
+	/**
+	 * Mirrors core: false when there was nothing to delete.
+	 */
 	function delete_user_meta( $user_id, $key ) {
+		$existed = isset( $GLOBALS['dls_test_user_meta'][ $user_id ] ) && array_key_exists( $key, $GLOBALS['dls_test_user_meta'][ $user_id ] );
 		unset( $GLOBALS['dls_test_user_meta'][ $user_id ][ $key ] );
+		return $existed;
+	}
+}
+// Object cache: the in-memory stores below have no cache layer, so a cache
+// delete only records the call.
+$GLOBALS['dls_test_cache_deletes'] = array();
+if ( ! function_exists( 'wp_cache_delete' ) ) {
+	function wp_cache_delete( $key, $group = '' ) {
+		$GLOBALS['dls_test_cache_deletes'][] = array( $key, $group );
 		return true;
+	}
+}
+
+// Outgoing mail recorder. Set $GLOBALS['dls_test_mail_result'] to false to
+// model a failed send.
+$GLOBALS['dls_test_mail']        = array();
+$GLOBALS['dls_test_mail_result'] = true;
+if ( ! function_exists( 'wp_mail' ) ) {
+	function wp_mail( $to, $subject, $message, $headers = '', $attachments = array() ) {
+		unset( $headers, $attachments );
+		$GLOBALS['dls_test_mail'][] = array( $to, $subject, $message );
+		return (bool) $GLOBALS['dls_test_mail_result'];
+	}
+}
+if ( ! function_exists( 'get_bloginfo' ) ) {
+	function get_bloginfo( $show = '', $filter = 'raw' ) {
+		unset( $filter );
+		return 'name' === $show ? 'Example &amp; Co' : '';
+	}
+}
+if ( ! function_exists( 'wp_specialchars_decode' ) ) {
+	function wp_specialchars_decode( $text, $quote_style = ENT_NOQUOTES ) {
+		return htmlspecialchars_decode( (string) $text, $quote_style );
+	}
+}
+if ( ! function_exists( 'wp_lostpassword_url' ) ) {
+	function wp_lostpassword_url( $redirect = '' ) {
+		unset( $redirect );
+		return 'https://example.test/wp-login.php?action=lostpassword';
 	}
 }
 if ( ! function_exists( 'current_time' ) ) {
@@ -581,13 +637,13 @@ if ( ! function_exists( 'current_user_can' ) ) {
 }
 if ( ! function_exists( 'esc_html' ) ) {
 	function esc_html( $text ) {
-		return htmlspecialchars( (string) $text, ENT_QUOTES );
+		return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8', false );
 	}
 }
 if ( ! function_exists( 'esc_html__' ) ) {
 	function esc_html__( $text, $domain = 'default' ) {
 		unset( $domain );
-		return htmlspecialchars( (string) $text, ENT_QUOTES );
+		return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8', false );
 	}
 }
 

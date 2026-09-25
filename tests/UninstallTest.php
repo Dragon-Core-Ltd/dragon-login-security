@@ -34,6 +34,7 @@ class UninstallTest extends TestCase {
 			'dragonloginsecurity_schema_failure'           => array( 'tables' => array( 'wp_dls_lockouts' ) ),
 			'dragonloginsecurity_pro_pointer'              => array(),
 			'dragonloginsecurity_pro_pointer_events'       => 2,
+			'dragonloginsecurity_proxy_mismatch'           => array( 'ip' => '6.6.6.6', 'time' => 1 ),
 			'blogname'                                     => 'Kept',
 		);
 
