@@ -38,6 +38,8 @@ class CLI {
 			\WP_CLI::error( 'User not found.' );
 		}
 		delete_user_meta( $user->ID, Two_Factor::TOTP_META );
+		delete_user_meta( $user->ID, Two_Factor::TOTP_UNREADABLE_MAILED_META );
+		delete_user_meta( $user->ID, Two_Factor::CODE_FAILURES_META );
 		delete_user_meta( $user->ID, Provider_Backup_Codes::META_KEY );
 		delete_user_meta( $user->ID, 'dls_backup_codes_confirmed' );
 		// Passkeys on any site of a network count as enrolment, so all go.

@@ -51,15 +51,33 @@ $dragonloginsecurity_deny  = ! empty( $dragonloginsecurity_s['deny_ips'] ) ? imp
 				<td>
 					<label>
 						<input type="checkbox" name="trust_proxy" <?php checked( ! empty( $dragonloginsecurity_s['trust_proxy'] ) ); ?>>
-						<?php esc_html_e( 'Trust X-Forwarded-For for the client IP', 'dragon-login-security' ); ?>
+						<?php esc_html_e( 'Trust proxy headers for the client IP', 'dragon-login-security' ); ?>
 					</label>
 					<p class="description"><?php esc_html_e( 'Only enable this if your site is behind a trusted reverse proxy or load balancer. Otherwise attackers can spoof their IP.', 'dragon-login-security' ); ?></p>
+
+					<p style="margin-top:10px;">
+						<label for="dls-proxy-header"><strong><?php esc_html_e( 'Header your proxy sets', 'dragon-login-security' ); ?></strong></label>
+					</p>
+					<select id="dls-proxy-header" name="proxy_header">
+						<?php
+						$dragonloginsecurity_header_labels = array(
+							'x_forwarded_for'  => 'X-Forwarded-For',
+							'x_real_ip'        => 'X-Real-IP',
+							'cf_connecting_ip' => 'CF-Connecting-IP',
+							'true_client_ip'   => 'True-Client-IP',
+						);
+						foreach ( $dragonloginsecurity_header_labels as $dragonloginsecurity_header_key => $dragonloginsecurity_header_label ) :
+							?>
+							<option value="<?php echo esc_attr( $dragonloginsecurity_header_key ); ?>" <?php selected( IP::proxy_header( $dragonloginsecurity_s ), $dragonloginsecurity_header_key ); ?>><?php echo esc_html( $dragonloginsecurity_header_label ); ?></option>
+						<?php endforeach; ?>
+					</select>
+					<p class="description"><?php esc_html_e( 'Only this header is read. A proxy overwrites the header it sets but passes any other header a visitor sends straight through, so choose the one your proxy documentation names: X-Forwarded-For for most load balancers and CDNs, X-Real-IP for a single nginx proxy, CF-Connecting-IP for Cloudflare, True-Client-IP for Akamai and some CDNs.', 'dragon-login-security' ); ?></p>
 
 					<p style="margin-top:10px;">
 						<label for="dls-trusted-proxies"><strong><?php esc_html_e( 'Trusted proxy IPs / ranges (optional)', 'dragon-login-security' ); ?></strong></label>
 					</p>
 					<textarea id="dls-trusted-proxies" name="trusted_proxies" rows="3" class="large-text code" placeholder="173.245.48.0/20&#10;103.21.244.0/22"><?php echo esc_textarea( implode( "\n", (array) ( $dragonloginsecurity_s['trusted_proxies'] ?? array() ) ) ); ?></textarea>
-					<p class="description"><?php esc_html_e( 'One IP or CIDR range per line - your proxy / CDN addresses. When set, forwarded headers are read only from requests that arrive from one of these addresses or from an internal address (loopback, private network or carrier-grade NAT, such as a load balancer or a local web server), and the client IP is the first X-Forwarded-For address, reading from the right, that is neither. Leave empty if a single proxy sits in front (the rightmost forwarded address is used).', 'dragon-login-security' ); ?></p>
+					<p class="description"><?php esc_html_e( 'One IP or CIDR range per line - your proxy / CDN addresses. When set, the header is read only from requests that arrive from one of these addresses or from an internal address (loopback, private network or carrier-grade NAT, such as a load balancer or a local web server). With X-Forwarded-For, the client IP is the first address, reading from the right, that is neither. Leave empty if a single proxy sits in front (the rightmost forwarded address is used).', 'dragon-login-security' ); ?></p>
 				</td>
 			</tr>
 					<tr>

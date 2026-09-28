@@ -38,7 +38,7 @@ class Limit_Login {
 	 * Register hooks.
 	 */
 	public function hook(): void {
-		add_filter( 'authenticate', array( $this, 'block_locked' ), 30, 1 );
+		add_filter( 'authenticate', array( $this, 'block_locked' ), 30, 3 );
 		add_action( 'wp_login_failed', array( $this, 'on_failure' ), 10, 2 );
 		add_action( 'wp_login', array( $this, 'on_success' ), 10, 2 );
 	}
@@ -73,6 +73,43 @@ class Limit_Login {
 	}
 
 	/**
+	 * The address an attempt is counted against. An IPv6 address counts as its
+	 * /64 block, the allocation a single subscriber or device typically holds,
+	 * so an attacker cannot take a fresh counter for every one of the 2^64
+	 * addresses in it. IPv4 addresses, including IPv4-mapped IPv6 ones, count
+	 * singly.
+	 *
+	 * @param string $ip IP address.
+	 * @return string The address or block the counters are keyed on.
+	 */
+	public static function bucket( string $ip ): string {
+		$ip = trim( $ip );
+		if ( 1 === preg_match( '/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i', $ip, $m ) ) {
+			return $m[1];
+		}
+		if ( ! filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) ) {
+			return $ip;
+		}
+		$packed = inet_pton( $ip );
+		if ( false === $packed || 16 !== strlen( $packed ) ) {
+			return $ip;
+		}
+		$block = inet_ntop( substr( $packed, 0, 8 ) . str_repeat( "\0", 8 ) );
+		return false === $block ? $ip : $block . '/64';
+	}
+
+	/**
+	 * Transient key for one of an address's counters.
+	 *
+	 * @param string $what 'fail', 'prior', 'banked' or 'lock'.
+	 * @param string $ip   IP address.
+	 * @return string
+	 */
+	private function key( string $what, string $ip ): string {
+		return 'dragonloginsecurity_' . $what . '_' . md5( self::bucket( $ip ) );
+	}
+
+	/**
 	 * Whether an IP is currently locked out (or on the deny list).
 	 *
 	 * @param string $ip IP.
@@ -88,16 +125,28 @@ class Limit_Login {
 		if ( $this->in_list( $ip, 'deny' ) ) {
 			return true;
 		}
-		return (bool) get_transient( 'dragonloginsecurity_lock_' . md5( $ip ) );
+		return (bool) get_transient( $this->key( 'lock', $ip ) );
 	}
 
 	/**
-	 * Reject authentication while locked, regardless of credentials.
+	 * Reject a credential check while locked, whatever the credentials.
 	 *
-	 * @param null|\WP_User|\WP_Error $user Auth result so far.
+	 * An authenticate pass without both a username and a password is not a
+	 * sign-in attempt: wp-login.php runs one on every load of the login screen
+	 * (wp_signon with no credentials), and core's own check answers it with an
+	 * "empty" error that never fires wp_login_failed. Replacing that answer
+	 * with the lockout error would count every page load a locked-out visitor
+	 * makes as another failure and extend their lock.
+	 *
+	 * @param null|\WP_User|\WP_Error $user     Auth result so far.
+	 * @param string                  $username Username as submitted.
+	 * @param string                  $password Password as submitted.
 	 * @return null|\WP_User|\WP_Error
 	 */
-	public function block_locked( $user ) {
+	public function block_locked( $user, $username = '', $password = '' ) {
+		if ( '' === (string) $username || '' === (string) $password ) {
+			return $user;
+		}
 		$ip = IP::current();
 		if ( $this->is_locked( $ip ) ) {
 			return new \WP_Error(
@@ -114,10 +163,12 @@ class Limit_Login {
 	 * Failures are counted per address. THRESHOLD failures lock the address,
 	 * and failures made while it is locked keep counting and extend the lock.
 	 * Once a lock has run out, the next failure starts a new count, so a single
-	 * mistake after a lockout does not lock the address again. The failures
-	 * behind earlier lockouts are remembered for ESCALATION_WINDOW and added to
-	 * the current count when choosing the lock length, so repeated lockouts
-	 * escalate along the same ladder (lockout_seconds()).
+	 * mistake after a lockout does not lock the address again. The total behind
+	 * each lock is recorded when the lock is set and remembered for
+	 * ESCALATION_WINDOW, then added to the current count when choosing the
+	 * next lock length, so repeated lockouts escalate along the same ladder
+	 * (lockout_seconds()) even when the hour-long failure counter has expired
+	 * with the lock.
 	 *
 	 * A password-only sign-in refused because the account uses two-factor
 	 * sign-in is not counted: the password was correct.
@@ -137,22 +188,34 @@ class Limit_Login {
 			return 0;
 		}
 
-		$key       = 'dragonloginsecurity_fail_' . md5( $ip );
-		$prior_key = 'dragonloginsecurity_prior_' . md5( $ip );
-		$count     = (int) get_transient( $key );
-		$prior     = (int) get_transient( $prior_key );
-		$locked    = (bool) get_transient( 'dragonloginsecurity_lock_' . md5( $ip ) );
+		$key        = $this->key( 'fail', $ip );
+		$prior_key  = $this->key( 'prior', $ip );
+		$lock_key   = $this->key( 'lock', $ip );
+		$banked_key = $this->key( 'banked', $ip );
+		$count      = (int) get_transient( $key );
+		$prior      = (int) get_transient( $prior_key );
+		$locked     = (bool) get_transient( $lock_key );
+		$banked     = (int) get_transient( $banked_key );
 
-		if ( ! $locked && $count >= self::THRESHOLD ) {
-			// The previous lock has run out: bank its failures and count afresh.
-			$prior += $count;
-			$count  = 0;
+		if ( 'dragonloginsecurity_locked' === $code && '' === trim( $username ) ) {
+			// A refusal that never carried credentials (see block_locked) is
+			// not an attempt.
+			return $prior + $count;
+		}
+
+		if ( ! $locked && $banked > 0 ) {
+			// The previous lock has run out: its total, recorded when it was
+			// set (the hour-long counter may have expired with it), becomes the
+			// history behind a fresh count.
+			$prior = $banked;
+			$count = 0;
 			set_transient( $prior_key, $prior, self::ESCALATION_WINDOW );
+			delete_transient( $banked_key );
 		}
 
 		++$count;
-		set_transient( $key, $count, self::WINDOW );
 		$total = $prior + $count;
+		set_transient( $key, $count, self::WINDOW );
 
 		// The address total decides lockouts; this per-username share of it is
 		// what a later successful sign-in by that same account may forgive. No
@@ -165,12 +228,10 @@ class Limit_Login {
 		$this->emit( 'user.login_failed', $ip, $username, $total );
 
 		if ( $count >= self::THRESHOLD ) {
-			set_transient( 'dragonloginsecurity_lock_' . md5( $ip ), 1, $this->lockout_seconds( $total ) );
+			set_transient( $lock_key, 1, $this->lockout_seconds( $total ) );
+			set_transient( $banked_key, $total, self::ESCALATION_WINDOW );
 			// A new lockout, or one escalated to a longer tier while in force.
 			if ( ! $locked || $this->is_tier_boundary( $total ) ) {
-				if ( ! $locked && $prior > 0 ) {
-					set_transient( $prior_key, $prior, self::ESCALATION_WINDOW );
-				}
 				$this->record_lockout( $ip, $username, $total );
 				$this->emit( 'user.lockout', $ip, $username, $total );
 
@@ -243,7 +304,19 @@ class Limit_Login {
 			return;
 		}
 
-		$key       = 'dragonloginsecurity_fail_' . md5( $ip );
+		// A lock left to expire remembers its total; the forgiven failures
+		// come off that too.
+		$banked_key = $this->key( 'banked', $ip );
+		$banked     = (int) get_transient( $banked_key );
+		if ( $banked > 0 ) {
+			if ( $banked - $forgiven > 0 ) {
+				set_transient( $banked_key, $banked - $forgiven, self::ESCALATION_WINDOW );
+			} else {
+				delete_transient( $banked_key );
+			}
+		}
+
+		$key       = $this->key( 'fail', $ip );
 		$remaining = (int) get_transient( $key ) - $forgiven;
 		if ( $remaining > 0 ) {
 			set_transient( $key, $remaining, self::WINDOW );
@@ -256,7 +329,7 @@ class Limit_Login {
 
 		// Forgiven failures older than the current count sit in the banked
 		// total from earlier lockouts.
-		$prior_key = 'dragonloginsecurity_prior_' . md5( $ip );
+		$prior_key = $this->key( 'prior', $ip );
 		$prior     = (int) get_transient( $prior_key ) + $remaining;
 		if ( $prior > 0 ) {
 			set_transient( $prior_key, $prior, self::ESCALATION_WINDOW );
@@ -273,7 +346,7 @@ class Limit_Login {
 	 * @return string
 	 */
 	private function user_key( string $ip, string $username ): string {
-		return 'dragonloginsecurity_failu_' . md5( $ip . '|' . $this->normalise_username( $username ) );
+		return 'dragonloginsecurity_failu_' . md5( self::bucket( $ip ) . '|' . $this->normalise_username( $username ) );
 	}
 
 	/**
@@ -295,9 +368,10 @@ class Limit_Login {
 		if ( '' === $ip ) {
 			return;
 		}
-		delete_transient( 'dragonloginsecurity_fail_' . md5( $ip ) );
-		delete_transient( 'dragonloginsecurity_prior_' . md5( $ip ) );
-		delete_transient( 'dragonloginsecurity_lock_' . md5( $ip ) );
+		delete_transient( $this->key( 'fail', $ip ) );
+		delete_transient( $this->key( 'prior', $ip ) );
+		delete_transient( $this->key( 'banked', $ip ) );
+		delete_transient( $this->key( 'lock', $ip ) );
 	}
 
 	/**

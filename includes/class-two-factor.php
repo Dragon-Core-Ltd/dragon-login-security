@@ -550,9 +550,12 @@ class Two_Factor {
 	}
 
 	/**
-	 * Reject non-interactive credential authentication for 2FA users. Regular
-	 * passwords over XML-RPC/REST must not bypass the second factor; application
-	 * passwords (a separate, user-created credential) are allowed through.
+	 * Reject non-interactive credential authentication for 2FA users. A
+	 * password alone may only pass inside wp_signon(), whose cookies the
+	 * challenge holds back. Every other authenticate pass (XML-RPC, REST, an
+	 * HTTP Basic plugin on determine_current_user, a custom login route) gets
+	 * the user with nothing held, so it must be refused. Application passwords
+	 * (a separate, user-created credential) are allowed through.
 	 *
 	 * @param null|\WP_User|\WP_Error $user Auth result so far.
 	 * @return null|\WP_User|\WP_Error
@@ -565,7 +568,8 @@ class Two_Factor {
 		if ( ! ( $user instanceof \WP_User ) || ! $this->user_has_2fa( $user->ID ) ) {
 			return $user;
 		}
-		$non_interactive = ( defined( 'XMLRPC_REQUEST' ) && XMLRPC_REQUEST )
+		$non_interactive = ! $this->in_signon
+			|| ( defined( 'XMLRPC_REQUEST' ) && XMLRPC_REQUEST )
 			|| ( defined( 'REST_REQUEST' ) && REST_REQUEST );
 		if ( $non_interactive && (int) $user->ID !== $app_password_user ) {
 			return new \WP_Error(
@@ -594,10 +598,14 @@ class Two_Factor {
 	}
 
 	/**
-	 * The decrypted TOTP secret for a user, or null. Fails safe: if a stored
-	 * secret cannot be decrypted (e.g. after a wp_salt rotation) it is cleared
-	 * and the factor disabled, rather than leaving the user permanently unable
-	 * to pass a factor they are still offered.
+	 * Per-user marker that the user has been emailed about an authenticator
+	 * secret that can no longer be read.
+	 */
+	const TOTP_UNREADABLE_MAILED_META = 'dragonloginsecurity_totp_unreadable_mailed';
+
+	/**
+	 * The decrypted TOTP secret for a user, or null when none is stored or the
+	 * stored one cannot be read.
 	 *
 	 * @param int $user_id User id.
 	 * @return string|null
@@ -609,31 +617,96 @@ class Two_Factor {
 		}
 		$secret = Crypto::decrypt( $stored );
 		if ( null === $secret ) {
-			delete_user_meta( $user_id, self::TOTP_META );
-			$user = get_userdata( $user_id );
-			do_action(
-				'dragonloginsecurity_login_event',
-				'2fa.disabled',
-				array(
-					'object_id'   => $user_id,
-					'object_name' => $user ? $user->user_login : (string) $user_id,
-					'message'     => __( 'Authenticator secret could not be decrypted and was cleared.', 'dragon-login-security' ),
-				)
-			);
+			$this->totp_unreadable( $user_id );
 			return null;
+		}
+		if ( '' !== (string) get_user_meta( $user_id, self::TOTP_UNREADABLE_MAILED_META, true ) ) {
+			// Set up again: a repeat is reported again.
+			delete_user_meta( $user_id, self::TOTP_UNREADABLE_MAILED_META );
 		}
 		return $secret;
 	}
 
 	/**
+	 * A stored authenticator secret cannot be decrypted (the site's salts were
+	 * rotated). The secret is kept and the factor stays required: dropping the
+	 * account to a password alone would turn a maintenance step into a
+	 * two-factor bypass. The user can still sign in with a backup code or a
+	 * passkey and set the app up again, or an administrator can reset them.
+	 * They are told once by email; a failed send is retried next time.
+	 *
+	 * @param int $user_id User id.
+	 */
+	private function totp_unreadable( int $user_id ): void {
+		$user = get_userdata( $user_id );
+		if ( ! $user || '' === (string) $user->user_email ) {
+			return;
+		}
+		if ( '' !== (string) get_user_meta( $user_id, self::TOTP_UNREADABLE_MAILED_META, true ) ) {
+			return;
+		}
+		do_action(
+			'dragonloginsecurity_login_event',
+			'2fa.totp_unreadable',
+			array(
+				'object_id'   => $user_id,
+				'object_name' => $user->user_login,
+				'message'     => __( 'Authenticator secret can no longer be decrypted; the app must be set up again.', 'dragon-login-security' ),
+			)
+		);
+		$site  = wp_specialchars_decode( (string) get_bloginfo( 'name' ), ENT_QUOTES );
+		$lines = array(
+			sprintf(
+				/* translators: %s: username. */
+				__( 'Hello %s,', 'dragon-login-security' ),
+				$user->user_login
+			),
+			sprintf(
+				/* translators: %s: site name. */
+				__( 'The authenticator app set up for your account on %s can no longer be verified, because the site\'s security keys were changed. Codes from the app will not be accepted until it is set up again.', 'dragon-login-security' ),
+				$site
+			),
+			__( 'To sign in, use a backup code or a passkey on the two-factor screen, then set up the authenticator app again from your profile. If you have neither, ask a site administrator to reset your two-factor settings.', 'dragon-login-security' ),
+		);
+		$sent  = wp_mail(
+			$user->user_email,
+			sprintf(
+				/* translators: %s: site name. */
+				__( '[%s] Your authenticator app needs setting up again', 'dragon-login-security' ),
+				$site
+			),
+			implode( "\n\n", $lines )
+		);
+		if ( $sent ) {
+			update_user_meta( $user_id, self::TOTP_UNREADABLE_MAILED_META, time() );
+		}
+	}
+
+	/**
+	 * The state of a user's authenticator app: 'none', 'ok', or 'unreadable'
+	 * when a secret is stored but can no longer be decrypted.
+	 *
+	 * @param int $user_id User id.
+	 * @return string
+	 */
+	public function totp_state( int $user_id ): string {
+		if ( '' === (string) get_user_meta( $user_id, self::TOTP_META, true ) ) {
+			return 'none';
+		}
+		return null === $this->totp_secret( $user_id ) ? 'unreadable' : 'ok';
+	}
+
+	/**
 	 * Whether a user has a primary second factor (TOTP or passkey). Backup codes
-	 * are recovery only, never a standalone factor.
+	 * are recovery only, never a standalone factor. A stored authenticator
+	 * secret counts even when it can no longer be read (see totp_unreadable()).
 	 *
 	 * @param int $user_id User id.
 	 * @return bool
 	 */
 	public function user_has_2fa( int $user_id ): bool {
-		if ( null !== $this->totp_secret( $user_id ) ) {
+		if ( '' !== (string) get_user_meta( $user_id, self::TOTP_META, true ) ) {
+			$this->totp_secret( $user_id );
 			return true;
 		}
 		return Provider_Passkey::is_enrolled_on_network( $user_id );

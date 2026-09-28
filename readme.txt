@@ -4,15 +4,15 @@ Tags: two factor, 2fa, passkeys, login security, brute force
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.0.16
+Stable tag: 1.0.17
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Brute-force protection and modern two-factor authentication — authenticator apps, backup codes, and passkeys — for WordPress.
+Brute-force protection and modern two-factor authentication - authenticator apps, backup codes, and passkeys - for WordPress.
 
 == Description ==
 
-Dragon Login Security locks down the front door of your WordPress site: it stops brute-force attacks and adds real two-factor authentication, including **passkeys** (Face ID, Touch ID, Windows Hello, or a security key) — the passwordless standard most 2FA plugins still don't do well.
+Dragon Login Security locks down the front door of your WordPress site: it stops brute-force attacks and adds real two-factor authentication, including **passkeys** (Face ID, Touch ID, Windows Hello, or a security key) - the passwordless standard most 2FA plugins still don't do well.
 
 It works on its own, and when the free **Dragon Activity Log** plugin is installed, every login, lockout, and two-factor event flows into its tamper-evident audit trail.
 
@@ -61,7 +61,7 @@ List only your CDN's ranges. Loopback, private network and carrier-grade NAT add
 
 = Does it work with the Dragon Activity Log plugin? =
 
-Yes — when Activity Log is active, login and two-factor events are recorded in its tamper-evident audit. Dragon Login Security works fully without it.
+Yes - when Activity Log is active, login and two-factor events are recorded in its tamper-evident audit. Dragon Login Security works fully without it.
 
 == External services ==
 
@@ -80,6 +80,19 @@ made to that service.
 * lbuchs/webauthn (MIT) - https://github.com/lbuchs/WebAuthn - server-side WebAuthn (FIDO2) ceremony handling for passkeys.
 
 == Changelog ==
+
+= 1.0.17 =
+* Security: a password alone no longer signs a two-factor account in through plugins that authenticate each request themselves (HTTP Basic authentication and similar); only the login form, and application passwords, get through.
+* Security: passkey sign-in and registration check that the browser's origin is this site or one of its subdomains, not merely a host ending in the same letters.
+* Fixed: loading the login screen while locked out counted as another failed sign-in, so a locked-out visitor who kept refreshing the page turned a 15-minute lock into a day-long one. Page loads no longer count.
+* Fixed: repeated lockouts keep getting longer after an hour-long lock has ended, even when the failure counter expired with it.
+* IPv6 addresses are locked out by their /64 block, so an attacker cannot take a fresh address from the same allocation for every attempt.
+* An authenticator app whose stored secret can no longer be read (after the site's security keys were changed) stays required: its codes are refused, backup codes and passkeys still work, and the user is emailed once to set the app up again. It was previously switched off silently.
+* Choose which forwarded-address header your proxy sets (X-Forwarded-For, X-Real-IP, CF-Connecting-IP or True-Client-IP); only that header is read.
+* A site behind a proxy that has not turned proxy-header trust on is warned on the dashboard and in Site Health: every visitor would share one address for lockouts.
+* Allow and deny lists refuse ranges that cover the whole internet (shorter than /8 or /16), and an import adds at most 1,000 entries per list.
+* The WP-CLI recovery command also lifts the account's incorrect-code pause.
+* The one-time settings move from the old option name now runs once instead of being checked on every request.
 
 = 1.0.16 =
 * Security: a user with two-factor sign-in only receives a signed-in session after passing the second step, including after a WooCommerce password reset.
@@ -142,12 +155,12 @@ made to that service.
 * Polish: passkey list shows an empty state.
 
 = 1.0.5 =
-* Data safety: uninstalling the plugin no longer deletes its data unless you explicitly opt in first — a reinstall now picks up exactly where you left off. (New setting.)
+* Data safety: uninstalling the plugin no longer deletes its data unless you explicitly opt in first - a reinstall now picks up exactly where you left off. (New setting.)
 * New: one-click import of allow/deny IP lists from Limit Login Attempts (Reloaded) and Wordfence.
-* Privacy: integrates WordPress's privacy tools — personal-data export shows a user's enrolment facts (never secrets) and erasure removes their second-factor material and lockout history; suggested privacy-policy text included.
+* Privacy: integrates WordPress's privacy tools - personal-data export shows a user's enrolment facts (never secrets) and erasure removes their second-factor material and lockout history; suggested privacy-policy text included.
 
 = 1.0.4 =
-* New look: the Dragon design system arrives — a consistent Dragon Core header, cleaner tables, and unified status colours. Purely visual; no behaviour changes.
+* New look: the Dragon design system arrives - a consistent Dragon Core header, cleaner tables, and unified status colours. Purely visual; no behaviour changes.
 
 = 1.0.3 =
 * Maintenance: uninstall now also clears any pre-1.0.2 leftover options and scheduled task.
@@ -162,6 +175,9 @@ made to that service.
 * Initial release.
 
 == Upgrade Notice ==
+
+= 1.0.17 =
+Security update: closes a password-only sign-in through request-authenticating plugins, and stops login-page loads extending a lockout. Please update.
 
 = 1.0.16 =
 Security update: two-factor sign-in now also covers password resets. Please update.

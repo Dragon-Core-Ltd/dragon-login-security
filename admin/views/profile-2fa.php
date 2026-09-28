@@ -5,6 +5,7 @@
  * @package DragonLoginSecurity
  * @var \WP_User $dragonloginsecurity_user
  * @var bool     $dragonloginsecurity_totp_on
+ * @var bool     $dragonloginsecurity_totp_bad
  * @var array    $dragonloginsecurity_passkeys
  * @var bool     $dragonloginsecurity_wa_ok
  * @var int      $dragonloginsecurity_backup_n
@@ -45,13 +46,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 		<th scope="row"><?php esc_html_e( 'Authenticator app (TOTP)', 'dragon-login-security' ); ?></th>
 		<td>
 			<?php if ( $dragonloginsecurity_totp_on ) : ?>
-				<p><span class="dls-on"><?php esc_html_e( 'Enabled', 'dragon-login-security' ); ?></span>
+				<p><span class="<?php echo $dragonloginsecurity_totp_bad ? 'dls-off' : 'dls-on'; ?>"><?php echo esc_html( $dragonloginsecurity_totp_bad ? __( 'Needs setting up again', 'dragon-login-security' ) : __( 'Enabled', 'dragon-login-security' ) ); ?></span>
 					<button type="button" class="button dls-totp-disable"><?php esc_html_e( 'Disable', 'dragon-login-security' ); ?></button>
 				</p>
-			<?php elseif ( ! $dragonloginsecurity_is_self ) : ?>
+				<?php if ( $dragonloginsecurity_totp_bad ) : ?>
+					<p class="description"><?php echo esc_html( $dragonloginsecurity_is_self ? __( 'The stored authenticator secret can no longer be read, because the site\'s security keys were changed. Codes from the app are refused until it is set up again below; backup codes and passkeys still work.', 'dragon-login-security' ) : __( 'The stored authenticator secret can no longer be read, because the site\'s security keys were changed. The user sets the app up again from their own profile, or you can disable it here.', 'dragon-login-security' ) ); ?></p>
+				<?php endif; ?>
+			<?php endif; ?>
+			<?php if ( ! $dragonloginsecurity_totp_on && ! $dragonloginsecurity_is_self ) : ?>
 				<p class="dls-muted"><?php esc_html_e( 'Not set up. The user enables this from their own profile.', 'dragon-login-security' ); ?></p>
-			<?php else : ?>
-				<button type="button" class="button" id="dls-totp-setup"><?php esc_html_e( 'Set up authenticator app', 'dragon-login-security' ); ?></button>
+			<?php elseif ( $dragonloginsecurity_is_self && ( ! $dragonloginsecurity_totp_on || $dragonloginsecurity_totp_bad ) ) : ?>
+				<button type="button" class="button" id="dls-totp-setup"><?php echo esc_html( $dragonloginsecurity_totp_bad ? __( 'Set up authenticator app again', 'dragon-login-security' ) : __( 'Set up authenticator app', 'dragon-login-security' ) ); ?></button>
 				<div id="dls-totp-panel" style="display:none;margin-top:10px;">
 					<p><?php esc_html_e( 'Add this key to your authenticator app (Google Authenticator, 1Password, Authy…):', 'dragon-login-security' ); ?></p>
 					<p><code id="dls-totp-secret"></code></p>

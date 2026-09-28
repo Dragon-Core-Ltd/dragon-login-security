@@ -176,6 +176,11 @@ class Provider_TOTP {
 		 * step has caught up with its own.
 		 */
 		for ( $attempt = 0; $attempt < self::CONSUME_ATTEMPTS; $attempt++ ) {
+			if ( $attempt > 0 ) {
+				// The lost write left this request's meta cache holding the
+				// value that was read; the retry must see what is stored.
+				wp_cache_delete( $user_id, 'user_meta' );
+			}
 			$raw  = get_user_meta( $user_id, self::LAST_STEP_META, true );
 			$last = (int) $raw;
 

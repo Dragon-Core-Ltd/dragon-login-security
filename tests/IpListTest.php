@@ -86,4 +86,25 @@ class IpListTest extends TestCase {
 		$this->assertSame( array( '10.9.9.0/24', '2001:db8::/32' ), get_option( 'dragonloginsecurity_settings' )['allow_ips'] );
 		$this->assertSame( array( '198.51.100.0/24' ), get_option( 'dragonloginsecurity_settings' )['deny_ips'] );
 	}
+
+	public function test_ranges_that_cover_the_whole_internet_are_refused(): void {
+		$this->assertNull( IP::normalise_list_entry( '0.0.0.0/0' ) );
+		$this->assertNull( IP::normalise_list_entry( '::/0' ) );
+		$this->assertNull( IP::normalise_list_entry( '1.0.0.0/7' ) );
+		$this->assertNull( IP::normalise_list_entry( '2001::/15' ) );
+		$this->assertSame( '10.0.0.0/8', IP::normalise_list_entry( '10.0.0.0/8' ) );
+		$this->assertSame( '2001:db8::/16', IP::normalise_list_entry( '2001:db8::/16' ) );
+	}
+
+	public function test_an_import_is_capped_at_a_thousand_entries_per_list(): void {
+		$GLOBALS['dls_test_options'] = array();
+		$allow = array();
+		for ( $i = 0; $i < 1100; $i++ ) {
+			$allow[] = '10.' . intdiv( $i, 250 ) . '.' . intdiv( $i % 250, 10 ) . '.' . ( $i % 10 + 1 );
+		}
+		$result = Importer::merge_lists( array_values( array_unique( $allow ) ), array() );
+		$this->assertSame( Importer::MAX_ENTRIES, $result['allow'] );
+		$this->assertSame( 100, $result['skipped'] );
+		$this->assertCount( Importer::MAX_ENTRIES, get_option( 'dragonloginsecurity_settings' )['allow_ips'] );
+	}
 }

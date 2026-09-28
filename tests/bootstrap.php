@@ -910,3 +910,24 @@ require_once __DIR__ . '/../includes/class-importer.php';
 require_once __DIR__ . '/../includes/class-privacy.php';
 
 require_once __DIR__ . '/../includes/class-pro-pointer.php';
+
+// WP-CLI stand-in for the command class: messages are recorded, errors thrown.
+if ( ! class_exists( 'WP_CLI' ) ) {
+	class WP_CLI {
+		public static $messages = array();
+		public static function success( $message ) {
+			self::$messages[] = array( 'success', $message );
+		}
+		public static function error( $message ) {
+			throw new \RuntimeException( (string) $message );
+		}
+		public static function add_command( $name, $callable ) {
+			unset( $name, $callable );
+		}
+	}
+}
+if ( ! function_exists( 'is_email' ) ) {
+	function is_email( $email ) {
+		return false !== filter_var( (string) $email, FILTER_VALIDATE_EMAIL ) ? $email : false;
+	}
+}

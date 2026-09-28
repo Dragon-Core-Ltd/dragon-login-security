@@ -2,14 +2,14 @@
 # This file is distributed under the GPL v2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Dragon Login Security 1.0.16\n"
+"Project-Id-Version: Dragon Login Security 1.0.17\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/dragon-login-security\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-25T14:53:27+00:00\n"
+"POT-Creation-Date: 2026-09-28T16:42:37+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: dragon-login-security\n"
@@ -17,7 +17,7 @@ msgstr ""
 #. Plugin Name of the plugin
 #: dragon-login-security.php
 #: admin/views/settings.php:20
-#: includes/class-admin.php:178
+#: includes/class-admin.php:210
 #: includes/class-privacy.php:37
 #: includes/class-privacy.php:52
 #: includes/class-privacy.php:66
@@ -88,91 +88,107 @@ msgstr ""
 msgid "Verify"
 msgstr ""
 
-#: admin/views/profile-2fa.php:19
+#: admin/views/profile-2fa.php:20
 msgid "Login Security (Two-Factor)"
 msgstr ""
 
-#: admin/views/profile-2fa.php:22
+#: admin/views/profile-2fa.php:23
 msgid "Passkeys"
 msgstr ""
 
-#: admin/views/profile-2fa.php:26
+#: admin/views/profile-2fa.php:27
 msgid "No passkeys yet."
 msgstr ""
 
-#: admin/views/profile-2fa.php:32
+#: admin/views/profile-2fa.php:33
 msgid "Remove"
 msgstr ""
 
-#: admin/views/profile-2fa.php:37
+#: admin/views/profile-2fa.php:38
 msgid "Passkeys are unavailable on this site because the WebAuthn library is missing. Reinstall the plugin to restore them."
 msgstr ""
 
-#: admin/views/profile-2fa.php:39
+#: admin/views/profile-2fa.php:40
 msgid "Add a passkey"
 msgstr ""
 
-#: admin/views/profile-2fa.php:41
+#: admin/views/profile-2fa.php:42
 msgid "A passkey lets you sign in with your device (Face ID, Touch ID, Windows Hello, or a security key) instead of a code."
 msgstr ""
 
-#: admin/views/profile-2fa.php:45
+#: admin/views/profile-2fa.php:46
 #: includes/class-privacy.php:93
 msgid "Authenticator app (TOTP)"
 msgstr ""
 
-#: admin/views/profile-2fa.php:48
-msgid "Enabled"
+#: admin/views/profile-2fa.php:49
+msgid "Needs setting up again"
 msgstr ""
 
 #: admin/views/profile-2fa.php:49
+msgid "Enabled"
+msgstr ""
+
+#: admin/views/profile-2fa.php:50
 msgid "Disable"
 msgstr ""
 
-#: admin/views/profile-2fa.php:52
+#: admin/views/profile-2fa.php:53
+msgid "The stored authenticator secret can no longer be read, because the site's security keys were changed. Codes from the app are refused until it is set up again below; backup codes and passkeys still work."
+msgstr ""
+
+#: admin/views/profile-2fa.php:53
+msgid "The stored authenticator secret can no longer be read, because the site's security keys were changed. The user sets the app up again from their own profile, or you can disable it here."
+msgstr ""
+
+#: admin/views/profile-2fa.php:57
 msgid "Not set up. The user enables this from their own profile."
 msgstr ""
 
-#: admin/views/profile-2fa.php:54
+#: admin/views/profile-2fa.php:59
+msgid "Set up authenticator app again"
+msgstr ""
+
+#: admin/views/profile-2fa.php:59
 msgid "Set up authenticator app"
 msgstr ""
 
-#: admin/views/profile-2fa.php:56
+#: admin/views/profile-2fa.php:61
 msgid "Add this key to your authenticator app (Google Authenticator, 1Password, Authy…):"
 msgstr ""
 
-#: admin/views/profile-2fa.php:58
+#: admin/views/profile-2fa.php:63
 msgid "Open in your authenticator app"
 msgstr ""
 
-#: admin/views/profile-2fa.php:60
+#: admin/views/profile-2fa.php:65
 msgid "Enter the 6-digit code to confirm:"
 msgstr ""
 
-#: admin/views/profile-2fa.php:62
+#: admin/views/profile-2fa.php:67
 msgid "Confirm"
 msgstr ""
 
-#: admin/views/profile-2fa.php:70
+#: admin/views/profile-2fa.php:75
 msgid "Backup codes"
 msgstr ""
 
 #. translators: %s: number of remaining codes.
-#: admin/views/profile-2fa.php:75
+#: admin/views/profile-2fa.php:80
 msgid "%s unused code remaining."
 msgid_plural "%s unused codes remaining."
 msgstr[0] ""
 msgstr[1] ""
 
-#: admin/views/profile-2fa.php:79
+#: admin/views/profile-2fa.php:84
 msgid "Generate new backup codes"
 msgstr ""
 
-#: admin/views/profile-2fa.php:83
+#: admin/views/profile-2fa.php:88
 msgid "Download codes"
 msgstr ""
 
-#: admin/views/profile-2fa.php:85
+#: admin/views/profile-2fa.php:90
 msgid "Backup codes let you sign in if you lose your passkey or phone. Keep them somewhere safe."
 msgstr ""
 
@@ -201,7 +217,7 @@ msgid "Proxy headers"
 msgstr ""
 
 #: admin/views/settings.php:54
-msgid "Trust X-Forwarded-For for the client IP"
+msgid "Trust proxy headers for the client IP"
 msgstr ""
 
 #: admin/views/settings.php:56
@@ -209,35 +225,43 @@ msgid "Only enable this if your site is behind a trusted reverse proxy or load b
 msgstr ""
 
 #: admin/views/settings.php:59
+msgid "Header your proxy sets"
+msgstr ""
+
+#: admin/views/settings.php:74
+msgid "Only this header is read. A proxy overwrites the header it sets but passes any other header a visitor sends straight through, so choose the one your proxy documentation names: X-Forwarded-For for most load balancers and CDNs, X-Real-IP for a single nginx proxy, CF-Connecting-IP for Cloudflare, True-Client-IP for Akamai and some CDNs."
+msgstr ""
+
+#: admin/views/settings.php:77
 msgid "Trusted proxy IPs / ranges (optional)"
 msgstr ""
 
-#: admin/views/settings.php:62
-msgid "One IP or CIDR range per line - your proxy / CDN addresses. When set, forwarded headers are read only from requests that arrive from one of these addresses or from an internal address (loopback, private network or carrier-grade NAT, such as a load balancer or a local web server), and the client IP is the first X-Forwarded-For address, reading from the right, that is neither. Leave empty if a single proxy sits in front (the rightmost forwarded address is used)."
+#: admin/views/settings.php:80
+msgid "One IP or CIDR range per line - your proxy / CDN addresses. When set, the header is read only from requests that arrive from one of these addresses or from an internal address (loopback, private network or carrier-grade NAT, such as a load balancer or a local web server). With X-Forwarded-For, the client IP is the first address, reading from the right, that is neither. Leave empty if a single proxy sits in front (the rightmost forwarded address is used)."
 msgstr ""
 
-#: admin/views/settings.php:66
+#: admin/views/settings.php:84
 msgid "Delete all data on uninstall"
 msgstr ""
 
-#: admin/views/settings.php:70
+#: admin/views/settings.php:88
 msgid "When the plugin is deleted, remove lockout history, passkeys, 2FA enrolments and settings. Leave off to keep them for a future reinstall."
 msgstr ""
 
-#: admin/views/settings.php:75
+#: admin/views/settings.php:93
 msgid "Save Settings"
 msgstr ""
 
-#: admin/views/settings.php:85
+#: admin/views/settings.php:103
 msgid "Import from another plugin"
 msgstr ""
 
-#: admin/views/settings.php:86
+#: admin/views/settings.php:104
 msgid "Carry your allow and deny IP lists over in one click. Nothing is removed from the other plugin."
 msgstr ""
 
 #. translators: %s: source plugin name
-#: admin/views/settings.php:95
+#: admin/views/settings.php:113
 msgid "Import from %s"
 msgstr ""
 
@@ -246,76 +270,81 @@ msgstr ""
 msgid "Requests from %1$s (last seen %2$s UTC) sent forwarded client-address headers, but that address is not in the trusted proxy list, so the headers were ignored and every visitor behind it shares that one address for lockouts. If %1$s is your load balancer, CDN or reverse proxy, add it (or its range) under Settings > Login Security > Trusted proxy IPs / ranges. If you do not recognise it, no action is needed: it may be a visitor sending the headers directly."
 msgstr ""
 
-#: includes/class-admin.php:68
+#. translators: 1: IP address, 2: UTC date and time it was last seen
+#: includes/class-admin.php:62
+msgid "Sign-in requests arrive from %1$s (last seen %2$s UTC) carrying forwarded client-address headers, but proxy headers are not trusted, so every visitor behind that address shares it for lockouts: a few failed sign-ins by anyone can lock everyone out, including you. If %1$s is your load balancer, CDN or reverse proxy, turn on proxy-header trust under Settings > Login Security, name the header your proxy sets and list its addresses."
+msgstr ""
+
+#: includes/class-admin.php:100
 msgid "Dragon Login Security:"
 msgstr ""
 
-#: includes/class-admin.php:81
+#: includes/class-admin.php:113
 msgid "Login Security proxy configuration"
 msgstr ""
 
-#: includes/class-admin.php:95
+#: includes/class-admin.php:127
 msgid "Login Security reads client addresses as configured"
 msgstr ""
 
-#: includes/class-admin.php:98
+#: includes/class-admin.php:130
 msgid "Security"
 msgstr ""
 
-#: includes/class-admin.php:101
-msgid "No request has sent forwarded client-address headers from an address outside the trusted proxy list."
+#: includes/class-admin.php:133
+msgid "No sign-in request has sent forwarded client-address headers that the plugin does not read."
 msgstr ""
 
-#: includes/class-admin.php:108
+#: includes/class-admin.php:140
 msgid "Login Security may be missing a trusted proxy"
 msgstr ""
 
-#: includes/class-admin.php:115
+#: includes/class-admin.php:147
 msgid "Review trusted proxies"
 msgstr ""
 
 #. translators: 1: list of table names, 2: UTC date and time of the last attempt
-#: includes/class-admin.php:136
+#: includes/class-admin.php:168
 msgid "Dragon Login Security could not create its database tables (%1$s; last attempt %2$s UTC). Check that the database user has the CREATE privilege, then deactivate and reactivate the plugin to retry."
 msgstr ""
 
-#: includes/class-admin.php:157
+#: includes/class-admin.php:189
 msgid "Dragon Login Security: the bundled WebAuthn library (vendor/lbuchs/webauthn) is missing, so passkeys are unavailable. Authenticator apps and backup codes still work. Reinstall the plugin to restore passkeys."
 msgstr ""
 
-#: includes/class-admin.php:179
+#: includes/class-admin.php:211
 msgid "Login Security"
 msgstr ""
 
-#: includes/class-admin.php:196
+#: includes/class-admin.php:228
 msgid "Settings"
 msgstr ""
 
 #. translators: %s: list of the refused entries.
-#: includes/class-admin.php:257
+#: includes/class-admin.php:281
 msgid "Settings saved, except this entry, which is not a valid IP address or CIDR range and was not saved: %s. Enter one IP address or CIDR range per line, such as 203.0.113.10 or 203.0.113.0/24."
 msgid_plural "Settings saved, except these entries, which are not valid IP addresses or CIDR ranges and were not saved: %s. Enter one IP address or CIDR range per line, such as 203.0.113.10 or 203.0.113.0/24."
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/class-admin.php:266
+#: includes/class-admin.php:290
 msgid "The \"delete data on uninstall\" preference could not be stored and is unchanged."
 msgstr ""
 
-#: includes/class-admin.php:269
+#: includes/class-admin.php:293
 msgid "Settings could not be saved. Your previous settings are still in effect; try again."
 msgstr ""
 
-#: includes/class-admin.php:271
+#: includes/class-admin.php:295
 msgid "Settings saved, but the \"delete data on uninstall\" preference could not be stored and is unchanged. Try again."
 msgstr ""
 
-#: includes/class-admin.php:273
+#: includes/class-admin.php:297
 msgid "Settings saved."
 msgstr ""
 
 #: includes/class-ajax.php:48
-#: includes/class-importer.php:55
+#: includes/class-importer.php:61
 msgid "Permission denied."
 msgstr ""
 
@@ -331,40 +360,40 @@ msgstr ""
 msgid "The authenticator could not be saved. Try again."
 msgstr ""
 
-#: includes/class-ajax.php:124
+#: includes/class-ajax.php:125
 msgid "Authenticator app enabled."
 msgstr ""
 
-#: includes/class-ajax.php:142
+#: includes/class-ajax.php:144
 msgid "Passkeys are unavailable on this site because the WebAuthn library is missing."
 msgstr ""
 
 #. translators: %s: date the passkey was added.
-#: includes/class-ajax.php:163
+#: includes/class-ajax.php:165
 msgid "Passkey (%s)"
 msgstr ""
 
-#: includes/class-ajax.php:179
+#: includes/class-ajax.php:181
 msgid "Passkey registration failed."
 msgstr ""
 
-#: includes/class-ajax.php:185
+#: includes/class-ajax.php:187
 msgid "The passkey could not be saved. Try again."
 msgstr ""
 
-#: includes/class-ajax.php:188
+#: includes/class-ajax.php:190
 msgid "Passkey added."
 msgstr ""
 
-#: includes/class-ajax.php:201
+#: includes/class-ajax.php:203
 msgid "Could not remove passkey."
 msgstr ""
 
-#: includes/class-ajax.php:211
+#: includes/class-ajax.php:213
 msgid "Backup codes could not be saved. Try again."
 msgstr ""
 
-#: includes/class-ajax.php:224
+#: includes/class-ajax.php:226
 msgid "Could not record the confirmation. Try again."
 msgstr ""
 
@@ -404,61 +433,61 @@ msgstr ""
 msgid "Passkey removed"
 msgstr ""
 
-#: includes/class-importer.php:36
+#: includes/class-importer.php:42
 msgid "Limit Login Attempts (Reloaded)"
 msgstr ""
 
-#: includes/class-importer.php:43
+#: includes/class-importer.php:49
 msgid "Wordfence"
 msgstr ""
 
-#: includes/class-importer.php:75
+#: includes/class-importer.php:81
 msgid "Unknown import source."
 msgstr ""
 
-#. translators: 1: allow-list additions, e.g. "3 allow-list entries", 2: deny-list additions, e.g. "2 deny-list entries", 3: skipped entries, e.g. "1 entry".
-#: includes/class-importer.php:85
-msgid "Import finished: %1$s and %2$s added; %3$s skipped (not a single IP address or CIDR range)."
+#. translators: 1: allow-list additions, e.g. "3 allow-list entries", 2: deny-list additions, e.g. "2 deny-list entries", 3: skipped entries, e.g. "1 entry", 4: the most entries a list may hold.
+#: includes/class-importer.php:91
+msgid "Import finished: %1$s and %2$s added; %3$s skipped (not a single IP address or CIDR range, or beyond the %4$s entries a list may hold)."
 msgstr ""
 
 #. translators: %s: number of addresses and ranges.
-#: includes/class-importer.php:88
+#: includes/class-importer.php:94
 msgid "%s allow-list entry"
 msgid_plural "%s allow-list entries"
 msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: number of addresses and ranges.
-#: includes/class-importer.php:93
+#: includes/class-importer.php:99
 msgid "%s deny-list entry"
 msgid_plural "%s deny-list entries"
 msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: number of entries.
-#: includes/class-importer.php:98
+#: includes/class-importer.php:104
 msgid "%s entry"
 msgid_plural "%s entries"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/class-importer.php:106
+#: includes/class-importer.php:113
 msgid "Import failed: the settings could not be saved, so no addresses were added. Try again."
 msgstr ""
 
-#: includes/class-limit-login.php:105
+#: includes/class-limit-login.php:154
 msgid "Too many failed attempts. Please try again later."
 msgstr ""
 
 #. translators: 1: IP address, 2: number of failed attempts.
-#: includes/class-limit-login.php:361
+#: includes/class-limit-login.php:435
 msgid "IP %1$s locked out after %2$s failed attempt"
 msgid_plural "IP %1$s locked out after %2$s failed attempts"
 msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: username.
-#: includes/class-limit-login.php:363
+#: includes/class-limit-login.php:437
 msgid "Failed login for \"%s\""
 msgstr ""
 
@@ -543,72 +572,87 @@ msgstr ""
 msgid "You are not allowed to do that."
 msgstr ""
 
-#: includes/class-two-factor.php:573
+#: includes/class-two-factor.php:577
 msgid "Two-factor authentication is required for this account. Create an application password for programmatic access."
 msgstr ""
 
-#: includes/class-two-factor.php:593
+#: includes/class-two-factor.php:597
 msgid "Accounts with two-factor sign-in must use an application password for XML-RPC, not the account password."
 msgstr ""
 
-#: includes/class-two-factor.php:620
-msgid "Authenticator secret could not be decrypted and was cleared."
-msgstr ""
-
-#: includes/class-two-factor.php:863
-msgid "You have logged in successfully."
-msgstr ""
-
-#: includes/class-two-factor.php:877
-msgid "Invalid code."
-msgstr ""
-
-#: includes/class-two-factor.php:890
-msgid "That code was not correct. Please try again."
-msgstr ""
-
-#. translators: %s: site name.
-#: includes/class-two-factor.php:1032
-msgid "[%s] Unsuccessful two-factor sign-in on your account"
+#: includes/class-two-factor.php:654
+msgid "Authenticator secret can no longer be decrypted; the app must be set up again."
 msgstr ""
 
 #. translators: %s: username.
-#: includes/class-two-factor.php:1038
+#: includes/class-two-factor.php:661
+#: includes/class-two-factor.php:1111
 msgid "Hello %s,"
 msgstr ""
 
 #. translators: %s: site name.
-#: includes/class-two-factor.php:1043
+#: includes/class-two-factor.php:666
+msgid "The authenticator app set up for your account on %s can no longer be verified, because the site's security keys were changed. Codes from the app will not be accepted until it is set up again."
+msgstr ""
+
+#: includes/class-two-factor.php:669
+msgid "To sign in, use a backup code or a passkey on the two-factor screen, then set up the authenticator app again from your profile. If you have neither, ask a site administrator to reset your two-factor settings."
+msgstr ""
+
+#. translators: %s: site name.
+#: includes/class-two-factor.php:675
+msgid "[%s] Your authenticator app needs setting up again"
+msgstr ""
+
+#: includes/class-two-factor.php:936
+msgid "You have logged in successfully."
+msgstr ""
+
+#: includes/class-two-factor.php:950
+msgid "Invalid code."
+msgstr ""
+
+#: includes/class-two-factor.php:963
+msgid "That code was not correct. Please try again."
+msgstr ""
+
+#. translators: %s: site name.
+#: includes/class-two-factor.php:1105
+msgid "[%s] Unsuccessful two-factor sign-in on your account"
+msgstr ""
+
+#. translators: %s: site name.
+#: includes/class-two-factor.php:1116
 msgid "Someone signed in to %s with your password, then entered incorrect two-factor codes too many times."
 msgstr ""
 
 #. translators: %s: number of minutes.
-#: includes/class-two-factor.php:1048
+#: includes/class-two-factor.php:1121
 msgid "To protect your account, the two-factor step is paused for up to %s minute."
 msgid_plural "To protect your account, the two-factor step is paused for up to %s minutes."
 msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: password reset address.
-#: includes/class-two-factor.php:1058
+#: includes/class-two-factor.php:1131
 msgid "If this was not you, someone else knows your password. Change it now: %s"
 msgstr ""
 
-#: includes/class-two-factor.php:1061
+#: includes/class-two-factor.php:1134
 msgid "Resetting your password also ends the pause."
 msgstr ""
 
-#: includes/class-two-factor.php:1089
+#: includes/class-two-factor.php:1162
 msgid "Too many incorrect codes. Please try again later."
 msgstr ""
 
 #. translators: %s: username.
-#: includes/class-two-factor.php:1189
+#: includes/class-two-factor.php:1262
 msgid "Two-factor passed: %s"
 msgstr ""
 
 #. translators: %s: username.
-#: includes/class-two-factor.php:1191
+#: includes/class-two-factor.php:1264
 msgid "Two-factor failed: %s"
 msgstr ""
 

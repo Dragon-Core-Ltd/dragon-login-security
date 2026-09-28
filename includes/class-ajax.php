@@ -120,6 +120,7 @@ class Ajax {
 			wp_send_json_error( array( 'message' => __( 'The authenticator could not be saved. Try again.', 'dragon-login-security' ) ) );
 		}
 		delete_transient( 'dragonloginsecurity_totp_pending_' . $user_id );
+		delete_user_meta( $user_id, Two_Factor::TOTP_UNREADABLE_MAILED_META );
 		$this->emit( '2fa.enrolled', $user_id );
 		wp_send_json_success( array( 'message' => __( 'Authenticator app enabled.', 'dragon-login-security' ) ) );
 	}
@@ -130,6 +131,7 @@ class Ajax {
 	public function totp_disable(): void {
 		$user_id = $this->guard();
 		delete_user_meta( $user_id, Two_Factor::TOTP_META );
+		delete_user_meta( $user_id, Two_Factor::TOTP_UNREADABLE_MAILED_META );
 		$this->emit( '2fa.disabled', $user_id );
 		wp_send_json_success();
 	}

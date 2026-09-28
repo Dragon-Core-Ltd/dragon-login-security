@@ -18,6 +18,12 @@ defined( 'ABSPATH' ) || exit;
 class Importer {
 
 	/**
+	 * Most entries one list may hold after an import. Every entry is matched
+	 * on each sign-in attempt, so an unbounded list would slow every login.
+	 */
+	const MAX_ENTRIES = 1000;
+
+	/**
 	 * Register hooks.
 	 */
 	public function init_hooks(): void {
@@ -81,8 +87,8 @@ class Importer {
 			$notice = array(
 				'type'    => 'success',
 				'message' => sprintf(
-					/* translators: 1: allow-list additions, e.g. "3 allow-list entries", 2: deny-list additions, e.g. "2 deny-list entries", 3: skipped entries, e.g. "1 entry". */
-					__( 'Import finished: %1$s and %2$s added; %3$s skipped (not a single IP address or CIDR range).', 'dragon-login-security' ),
+					/* translators: 1: allow-list additions, e.g. "3 allow-list entries", 2: deny-list additions, e.g. "2 deny-list entries", 3: skipped entries, e.g. "1 entry", 4: the most entries a list may hold. */
+					__( 'Import finished: %1$s and %2$s added; %3$s skipped (not a single IP address or CIDR range, or beyond the %4$s entries a list may hold).', 'dragon-login-security' ),
 					sprintf(
 						/* translators: %s: number of addresses and ranges. */
 						_n( '%s allow-list entry', '%s allow-list entries', (int) $result['allow'], 'dragon-login-security' ),
@@ -97,7 +103,8 @@ class Importer {
 						/* translators: %s: number of entries. */
 						_n( '%s entry', '%s entries', (int) $result['skipped'], 'dragon-login-security' ),
 						number_format_i18n( (int) $result['skipped'] )
-					)
+					),
+					number_format_i18n( self::MAX_ENTRIES )
 				),
 			);
 		} else {
@@ -152,6 +159,10 @@ class Importer {
 					continue;
 				}
 				if ( in_array( $ip, $current[ $key ], true ) ) {
+					continue;
+				}
+				if ( count( $current[ $key ] ) >= self::MAX_ENTRIES ) {
+					++$skipped;
 					continue;
 				}
 				$current[ $key ][] = $ip;

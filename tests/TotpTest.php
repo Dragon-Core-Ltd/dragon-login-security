@@ -92,6 +92,7 @@ class TotpTest extends TestCase {
 	public function test_two_requests_racing_the_very_first_step_record_only_the_newer(): void {
 		$GLOBALS['dls_test_user_meta']         = array();
 		$GLOBALS['dls_test_meta_write_fails'] = false;
+		$GLOBALS['dls_test_cache_deletes']     = array();
 
 		// Nothing is recorded yet and both requests see that. Only one row can be
 		// created, and the counter must end up at the newer step.
@@ -101,6 +102,8 @@ class TotpTest extends TestCase {
 
 		Provider_Totp::consume_step( 5, 199 );
 
+		// The lost write left this request's meta cache stale; the retry must not read it.
+		$this->assertContains( array( 5, 'user_meta' ), $GLOBALS['dls_test_cache_deletes'] );
 		$this->assertSame( 200, (int) get_user_meta( 5, Provider_Totp::LAST_STEP_META, true ) );
 		$this->assertFalse( Provider_Totp::consume_step( 5, 200 ) );
 	}

@@ -132,6 +132,7 @@ class TwoFactorGateTest extends TestCase {
 
 	public function test_interactive_login_is_left_to_the_challenge(): void {
 		$tf = new Two_Factor();
+		$tf->note_signon(); // wp_signon() fires wp_authenticate before the authenticate filters.
 		$this->assertInstanceOf( \WP_User::class, $this->pass( $tf, null, get_userdata( 1 ) ) );
 	}
 

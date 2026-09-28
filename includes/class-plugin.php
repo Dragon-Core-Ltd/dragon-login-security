@@ -38,6 +38,12 @@ final class Plugin {
 	const SCHEMA_FAILURE_OPTION = 'dragonloginsecurity_schema_failure';
 
 	/**
+	 * Option stamped once the pre-1.0.2 options have been moved to the current
+	 * prefix, so the move is not re-checked on every request.
+	 */
+	const PREFIX_MIGRATED_OPTION = 'dragonloginsecurity_prefix_migrated';
+
+	/**
 	 * Singleton.
 	 *
 	 * @var Plugin|null
@@ -209,6 +215,10 @@ final class Plugin {
 	 * original names (matched by exact name), so no enrolment data is touched.
 	 */
 	private static function migrate_legacy_prefix(): void {
+		if ( get_option( self::PREFIX_MIGRATED_OPTION ) ) {
+			return;
+		}
+		$done = true;
 		foreach ( array( 'db_version', 'settings' ) as $name ) {
 			if ( false === get_option( 'dragonloginsecurity_' . $name, false ) ) {
 				$legacy = get_option( 'dls_' . $name, null );
@@ -216,6 +226,7 @@ final class Plugin {
 					update_option( 'dragonloginsecurity_' . $name, $legacy );
 					// Keep the legacy copy until the new option is confirmed to hold it.
 					if ( ! self::same_option_value( get_option( 'dragonloginsecurity_' . $name, null ), $legacy ) ) {
+						$done = false;
 						continue;
 					}
 				}
@@ -226,6 +237,10 @@ final class Plugin {
 		$legacy_cron = wp_next_scheduled( 'dls_prune_lockouts' );
 		if ( $legacy_cron ) {
 			wp_unschedule_event( $legacy_cron, 'dls_prune_lockouts' );
+		}
+
+		if ( $done ) {
+			update_option( self::PREFIX_MIGRATED_OPTION, '1' );
 		}
 	}
 

@@ -111,4 +111,32 @@ class WebAuthnTest extends TestCase {
 		// Another user cannot use it, and the challenge is single use.
 		$this->assertFalse( WebAuthn::verify_authentication( 6, $auth['token'], $id, base64_encode( $client ), base64_encode( $auth_data ), base64_encode( $signature ) ) );
 	}
+
+	public function test_origin_must_be_the_relying_party_or_a_subdomain(): void {
+		$this->assertTrue( WebAuthn::origin_allowed( 'https://example.test', 'example.test' ) );
+		$this->assertTrue( WebAuthn::origin_allowed( 'https://shop.example.test', 'example.test' ) );
+		$this->assertTrue( WebAuthn::origin_allowed( 'https://EXAMPLE.test:8443', 'example.test' ) );
+		$this->assertTrue( WebAuthn::origin_allowed( 'http://localhost:8888', 'localhost' ) );
+		$this->assertFalse( WebAuthn::origin_allowed( 'https://evilexample.test', 'example.test' ) );
+		$this->assertFalse( WebAuthn::origin_allowed( 'https://example.test.evil', 'example.test' ) );
+		$this->assertFalse( WebAuthn::origin_allowed( 'http://example.test', 'example.test' ) );
+		$this->assertFalse( WebAuthn::origin_allowed( 'example.test', 'example.test' ) );
+		$this->assertFalse( WebAuthn::origin_allowed( '', 'example.test' ) );
+	}
+
+	public function test_a_look_alike_origin_cannot_use_a_passkey(): void {
+		list( $key, $id ) = $this->stored_passkey( 5 );
+		$auth             = WebAuthn::authentication_args( 5 );
+		$client           = wp_json_encode(
+			array(
+				'type'      => 'webauthn.get',
+				'challenge' => $auth['args']['publicKey']['challenge'],
+				'origin'    => 'https://evilexample.test',
+			)
+		);
+		$auth_data = hash( 'sha256', 'example.test', true ) . chr( 0x05 ) . pack( 'N', 5 );
+		openssl_sign( $auth_data . hash( 'sha256', $client, true ), $signature, $key, OPENSSL_ALGO_SHA256 );
+
+		$this->assertFalse( WebAuthn::verify_authentication( 5, $auth['token'], $id, base64_encode( $client ), base64_encode( $auth_data ), base64_encode( $signature ) ) );
+	}
 }

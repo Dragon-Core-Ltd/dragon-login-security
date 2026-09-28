@@ -76,6 +76,7 @@ class BackupCodesTest extends TestCase {
 	public function test_a_consumption_racing_another_does_not_resurrect_the_other_code(): void {
 		$GLOBALS['dls_test_user_meta']        = array();
 		$GLOBALS['dls_test_meta_write_fails'] = false;
+		$GLOBALS['dls_test_cache_deletes']    = array();
 
 		$plain = Provider_Backup_Codes::generate( 3 );
 		$this->assertTrue( Provider_Backup_Codes::store( 5, $plain ) );
@@ -89,6 +90,7 @@ class BackupCodesTest extends TestCase {
 
 		Provider_Backup_Codes::verify_and_consume( 5, $plain[0] );
 
+		$this->assertContains( array( 5, 'user_meta' ), $GLOBALS['dls_test_cache_deletes'], 'the retry re-reads the stored list, not the request cache' );
 		$this->assertFalse(
 			Provider_Backup_Codes::verify_and_consume( 5, $plain[2] ),
 			'Code 3 was used by the other request and must stay used.'

@@ -102,6 +102,11 @@ class Provider_Backup_Codes {
 		 * correctly refused.
 		 */
 		for ( $attempt = 0; $attempt < self::CONSUME_ATTEMPTS; $attempt++ ) {
+			if ( $attempt > 0 ) {
+				// The lost write left this request's meta cache holding the list
+				// that was read; the retry must see the stored one.
+				wp_cache_delete( $user_id, 'user_meta' );
+			}
 			$hashes = get_user_meta( $user_id, self::META_KEY, true );
 			if ( ! is_array( $hashes ) || empty( $hashes ) ) {
 				return false;

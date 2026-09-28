@@ -62,6 +62,44 @@ class WebAuthn {
 	}
 
 	/**
+	 * Whether a ceremony's origin belongs to the relying party: an https origin
+	 * (http only for localhost) whose host is the rpId or a subdomain of it.
+	 * The bundled library accepts any host that merely ends in the rpId
+	 * ("evilexample.test" for "example.test"), so the boundary is checked here.
+	 *
+	 * @param string $origin Origin from clientDataJSON.
+	 * @param string $rp_id  Relying-party id.
+	 * @return bool
+	 */
+	public static function origin_allowed( string $origin, string $rp_id ): bool {
+		$rp_id = strtolower( trim( $rp_id ) );
+		if ( '' === $rp_id || '' === $origin ) {
+			return false;
+		}
+		$parts = wp_parse_url( $origin );
+		if ( ! is_array( $parts ) || empty( $parts['scheme'] ) || empty( $parts['host'] ) ) {
+			return false;
+		}
+		$scheme = strtolower( (string) $parts['scheme'] );
+		$host   = strtolower( trim( (string) $parts['host'], '[]' ) );
+		if ( 'https' !== $scheme && ! ( 'http' === $scheme && 'localhost' === $host ) ) {
+			return false;
+		}
+		return $host === $rp_id || str_ends_with( $host, '.' . $rp_id );
+	}
+
+	/**
+	 * The origin a browser recorded in a ceremony's clientDataJSON, or ''.
+	 *
+	 * @param string $client_data_json Decoded clientDataJSON.
+	 * @return string
+	 */
+	private static function client_origin( string $client_data_json ): string {
+		$data = json_decode( $client_data_json, true );
+		return is_array( $data ) && isset( $data['origin'] ) && is_string( $data['origin'] ) ? $data['origin'] : '';
+	}
+
+	/**
 	 * Whether an asserted signature counter is acceptable vs the stored one.
 	 * A regression signals a cloned authenticator. Both-zero means the
 	 * authenticator does not implement a counter, which is permitted.
@@ -165,10 +203,14 @@ class WebAuthn {
 	 * @throws \Exception On verification failure.
 	 */
 	public static function verify_registration( int $user_id, string $client_data_b64, string $attestation_b64 ): array {
-		$challenge = self::take_challenge( 'dragonloginsecurity_wa_reg_' . $user_id );
-		$lib       = self::lib();
-		$data      = $lib->processCreate(
-			self::raw_b64_decode( $client_data_b64 ),
+		$challenge   = self::take_challenge( 'dragonloginsecurity_wa_reg_' . $user_id );
+		$lib         = self::lib();
+		$client_data = self::raw_b64_decode( $client_data_b64 );
+		if ( ! self::origin_allowed( self::client_origin( $client_data ), self::rp_id_from_url( home_url() ) ) ) {
+			throw new \RuntimeException( 'Origin does not belong to this site.' );
+		}
+		$data = $lib->processCreate(
+			$client_data,
 			self::raw_b64_decode( $attestation_b64 ),
 			new \lbuchs\WebAuthn\Binary\ByteBuffer( $challenge ),
 			true,
@@ -228,10 +270,15 @@ class WebAuthn {
 			return false; // Not this user's credential.
 		}
 
+		$client_data = self::raw_b64_decode( $client_data_b64 );
+		if ( ! self::origin_allowed( self::client_origin( $client_data ), self::rp_id_from_url( home_url() ) ) ) {
+			return false;
+		}
+
 		try {
 			$lib = self::lib();
 			$lib->processGet(
-				self::raw_b64_decode( $client_data_b64 ),
+				$client_data,
 				self::raw_b64_decode( $auth_data_b64 ),
 				self::raw_b64_decode( $signature_b64 ),
 				(string) $cred['public_key'],

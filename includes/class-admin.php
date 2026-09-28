@@ -49,8 +49,40 @@ class Admin {
 	}
 
 	/**
-	 * Show the proxy-mismatch warning on the dashboard and the plugin's
-	 * settings screen.
+	 * Explain a request that arrived with forwarded headers while proxy trust
+	 * is off: the site is behind a proxy it has not been told about, so every
+	 * visitor shares that proxy's address for lockouts.
+	 *
+	 * @param array{ip: string, time: int} $seen Recorded request.
+	 * @return string
+	 */
+	public static function proxy_unconfigured_text( array $seen ): string {
+		return sprintf(
+			/* translators: 1: IP address, 2: UTC date and time it was last seen */
+			__( 'Sign-in requests arrive from %1$s (last seen %2$s UTC) carrying forwarded client-address headers, but proxy headers are not trusted, so every visitor behind that address shares it for lockouts: a few failed sign-ins by anyone can lock everyone out, including you. If %1$s is your load balancer, CDN or reverse proxy, turn on proxy-header trust under Settings > Login Security, name the header your proxy sets and list its addresses.', 'dragon-login-security' ),
+			$seen['ip'],
+			wp_date( 'Y-m-d H:i', (int) $seen['time'], new \DateTimeZone( 'UTC' ) )
+		);
+	}
+
+	/**
+	 * The proxy warning that currently applies, if any: an unlisted proxy, or
+	 * a proxy while trust is off.
+	 *
+	 * @return string
+	 */
+	private static function proxy_warning(): string {
+		$mismatch = IP::proxy_mismatch();
+		if ( null !== $mismatch ) {
+			return self::proxy_mismatch_text( $mismatch );
+		}
+		$seen = IP::proxy_unconfigured();
+		return null === $seen ? '' : self::proxy_unconfigured_text( $seen );
+	}
+
+	/**
+	 * Show the proxy warning on the dashboard and the plugin's settings
+	 * screen.
 	 */
 	public function proxy_notice(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
@@ -60,12 +92,12 @@ class Admin {
 		if ( ! $screen || ! in_array( $screen->id, array( 'dashboard', 'settings_page_dragon-login-security' ), true ) ) {
 			return;
 		}
-		$mismatch = IP::proxy_mismatch();
-		if ( null === $mismatch ) {
+		$warning = self::proxy_warning();
+		if ( '' === $warning ) {
 			return;
 		}
 		echo '<div class="notice notice-warning"><p>';
-		echo esc_html( __( 'Dragon Login Security:', 'dragon-login-security' ) . ' ' . self::proxy_mismatch_text( $mismatch ) );
+		echo esc_html( __( 'Dragon Login Security:', 'dragon-login-security' ) . ' ' . $warning );
 		echo '</p></div>';
 	}
 
@@ -90,25 +122,25 @@ class Admin {
 	 * @return array
 	 */
 	public static function proxy_site_health(): array {
-		$mismatch = IP::proxy_mismatch();
-		$result   = array(
+		$warning = self::proxy_warning();
+		$result  = array(
 			'label'       => __( 'Login Security reads client addresses as configured', 'dragon-login-security' ),
 			'status'      => 'good',
 			'badge'       => array(
 				'label' => __( 'Security', 'dragon-login-security' ),
 				'color' => 'blue',
 			),
-			'description' => '<p>' . esc_html__( 'No request has sent forwarded client-address headers from an address outside the trusted proxy list.', 'dragon-login-security' ) . '</p>',
+			'description' => '<p>' . esc_html__( 'No sign-in request has sent forwarded client-address headers that the plugin does not read.', 'dragon-login-security' ) . '</p>',
 			'actions'     => '',
 			'test'        => 'dragonloginsecurity_proxy',
 		);
-		if ( null === $mismatch ) {
+		if ( '' === $warning ) {
 			return $result;
 		}
 		$result['label']          = __( 'Login Security may be missing a trusted proxy', 'dragon-login-security' );
 		$result['status']         = 'recommended';
 		$result['badge']['color'] = 'orange';
-		$result['description']    = '<p>' . esc_html( self::proxy_mismatch_text( $mismatch ) ) . '</p>';
+		$result['description']    = '<p>' . esc_html( $warning ) . '</p>';
 		$result['actions']        = sprintf(
 			'<p><a href="%s">%s</a></p>',
 			esc_url( admin_url( 'options-general.php?page=dragon-login-security' ) ),
@@ -208,20 +240,12 @@ class Admin {
 		}
 		check_admin_referer( 'dragonloginsecurity_settings' );
 
-		$proxies  = self::parse_ip_list( isset( $_POST['trusted_proxies'] ) ? wp_unslash( $_POST['trusted_proxies'] ) : '' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Parsed + validated line-by-line in parse_ip_list().
-		$allow    = self::parse_ip_list( isset( $_POST['allow_ips'] ) ? wp_unslash( $_POST['allow_ips'] ) : '' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Parsed + validated line-by-line in parse_ip_list().
-		$deny     = self::parse_ip_list( isset( $_POST['deny_ips'] ) ? wp_unslash( $_POST['deny_ips'] ) : '' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Parsed + validated line-by-line in parse_ip_list().
-		$settings = array(
-			'trust_proxy'     => isset( $_POST['trust_proxy'] ),
-			'trusted_proxies' => $proxies['valid'],
-			'allow_ips'       => $allow['valid'],
-			'deny_ips'        => $deny['valid'],
-		);
-		$rejected = array_values( array_unique( array_merge( $allow['invalid'], $deny['invalid'], $proxies['invalid'] ) ) );
+		$rejected = array();
+		$settings = self::settings_from_input( wp_unslash( $_POST ), $rejected ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Each field is validated in settings_from_input().
 		$saved    = self::persist_settings( $settings );
 		if ( $saved ) {
-			// The ranges were reviewed; report only mismatches seen from now on.
-			delete_option( IP::MISMATCH_OPTION );
+			// The proxy setup was reviewed; report only what is seen from now on.
+			self::forget_proxy_records();
 		}
 
 		/*
@@ -281,6 +305,37 @@ class Admin {
 			),
 			60
 		);
+	}
+
+	/**
+	 * The settings array a submitted form describes. Every list entry is
+	 * validated and the header choice is checked against the known headers.
+	 *
+	 * @param array    $input    Submitted fields (unslashed).
+	 * @param string[] $rejected Filled with the list entries refused as invalid.
+	 * @return array Full settings array.
+	 */
+	public static function settings_from_input( array $input, array &$rejected = array() ): array {
+		$proxies  = self::parse_ip_list( isset( $input['trusted_proxies'] ) && is_string( $input['trusted_proxies'] ) ? $input['trusted_proxies'] : '' );
+		$allow    = self::parse_ip_list( isset( $input['allow_ips'] ) && is_string( $input['allow_ips'] ) ? $input['allow_ips'] : '' );
+		$deny     = self::parse_ip_list( isset( $input['deny_ips'] ) && is_string( $input['deny_ips'] ) ? $input['deny_ips'] : '' );
+		$rejected = array_values( array_unique( array_merge( $allow['invalid'], $deny['invalid'], $proxies['invalid'] ) ) );
+		return array(
+			'trust_proxy'     => isset( $input['trust_proxy'] ),
+			'proxy_header'    => IP::proxy_header( array( 'proxy_header' => isset( $input['proxy_header'] ) && is_string( $input['proxy_header'] ) ? sanitize_key( $input['proxy_header'] ) : '' ) ),
+			'trusted_proxies' => $proxies['valid'],
+			'allow_ips'       => $allow['valid'],
+			'deny_ips'        => $deny['valid'],
+		);
+	}
+
+	/**
+	 * Forget the recorded proxy observations, once the administrator has
+	 * reviewed the proxy settings.
+	 */
+	public static function forget_proxy_records(): void {
+		delete_option( IP::MISMATCH_OPTION );
+		delete_option( IP::UNCONFIGURED_OPTION );
 	}
 
 	/**

@@ -3,7 +3,7 @@
  * Plugin Name: Dragon Login Security
  * Plugin URI: https://dragoncore.ltd/plugins/dragon-login-security
  * Description: Brute-force protection and modern two-factor authentication (authenticator apps, backup codes, and passkeys) for WordPress. Feeds Dragon Activity Log when installed.
- * Version: 1.0.16
+ * Version: 1.0.17
  * Requires at least: 6.2
  * Requires PHP: 8.0
  * Author: Dragon Core
@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- Namespaced constants carrying the plugin's DRAGONLOGINSECURITY_ prefix.
-define( 'DRAGONLOGINSECURITY_VERSION', '1.0.16' );
+define( 'DRAGONLOGINSECURITY_VERSION', '1.0.17' );
 define( 'DRAGONLOGINSECURITY_PLUGIN_FILE', __FILE__ );
 define( 'DRAGONLOGINSECURITY_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DRAGONLOGINSECURITY_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -88,11 +88,3 @@ function dragonloginsecurity_init(): void {
 	Plugin::get_instance();
 }
 add_action( 'plugins_loaded', __NAMESPACE__ . '\dragonloginsecurity_init' );
-
-/**
- * Load bundled translations.
- */
-function dragonloginsecurity_load_textdomain(): void {
-	load_plugin_textdomain( 'dragon-login-security', false, dirname( DRAGONLOGINSECURITY_PLUGIN_BASENAME ) . '/languages' );
-}
-add_action( 'init', __NAMESPACE__ . '\dragonloginsecurity_load_textdomain', 1 );

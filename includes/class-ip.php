@@ -51,22 +51,46 @@ class IP {
 	const MISMATCH_TTL = 604800;
 
 	/**
+	 * Option holding the last address seen sending forwarded headers while
+	 * proxy trust is off: a proxy the site has not been told about.
+	 */
+	const UNCONFIGURED_OPTION = 'dragonloginsecurity_proxy_unconfigured';
+
+	/**
+	 * The forwarded-address headers an administrator can name as the one their
+	 * proxy sets, keyed by the setting value. X-Forwarded-For is the default
+	 * and the only one read as a chain.
+	 */
+	const HEADERS = array(
+		'x_forwarded_for'  => 'HTTP_X_FORWARDED_FOR',
+		'x_real_ip'        => 'HTTP_X_REAL_IP',
+		'cf_connecting_ip' => 'HTTP_CF_CONNECTING_IP',
+		'true_client_ip'   => 'HTTP_TRUE_CLIENT_IP',
+	);
+
+	/**
 	 * Get the client IP for the current request.
 	 *
 	 * REMOTE_ADDR is the only value trusted by default. Proxy headers are
-	 * client-spoofable, so they are consulted only when `trust_proxy` is enabled.
-	 * With trusted-proxy ranges configured, the headers are read only when
+	 * client-spoofable, so they are consulted only when `trust_proxy` is enabled,
+	 * and only the header named in `proxy_header` is read (X-Forwarded-For
+	 * unless the administrator chose another): a proxy overwrites the header
+	 * it sets, but passes any other header a visitor sends straight through.
+	 * With trusted-proxy ranges configured, the header is read only when
 	 * REMOTE_ADDR is one of those proxies or an internal address (loopback,
 	 * private or carrier-grade NAT, see INTERNAL_RANGES), so a direct public
 	 * connection keeps its own address. The X-Forwarded-For chain, with
 	 * REMOTE_ADDR as its last hop, is walked from the right past every trusted
 	 * or internal hop: the first other hop is the client. A public REMOTE_ADDR
 	 * outside the ranges that sends forwarded headers is recorded for the
-	 * misconfiguration notice. The walk stops at a malformed hop and falls back to the
-	 * last trusted one. X-Real-IP is used only when X-Forwarded-For is absent,
-	 * under the same REMOTE_ADDR check. With no ranges configured, a single
-	 * proxy is assumed and its rightmost forwarded address is used.
-	 * HTTP_CLIENT_IP is never read.
+	 * misconfiguration notice. The walk stops at a malformed hop and falls back
+	 * to the last trusted one. With no ranges configured, a single proxy is
+	 * assumed and its rightmost forwarded address is used. The single-value
+	 * headers (X-Real-IP, CF-Connecting-IP, True-Client-IP) hold one address,
+	 * used as the client when the request came through a trusted hop.
+	 * HTTP_CLIENT_IP is never read. With proxy trust off, a request carrying
+	 * forwarded headers is recorded so the administrator can be told that
+	 * every visitor behind that proxy shares one address.
 	 *
 	 * @return string Empty string when none resolvable.
 	 */
@@ -78,15 +102,25 @@ class IP {
 		$trust_proxy = is_array( $settings ) && ! empty( $settings['trust_proxy'] );
 
 		if ( ! $trust_proxy ) {
+			if ( '' !== $remote && self::forwarded_headers_present() ) {
+				self::record_seen( self::UNCONFIGURED_OPTION, $remote );
+			}
 			return $remote;
 		}
 
 		$trusted = self::trusted_proxies();
 		if ( ! empty( $trusted ) && ( '' === $remote || ! self::is_proxy_hop( $remote, $trusted ) ) ) {
-			if ( '' !== $remote && ( ! empty( $_SERVER['HTTP_X_FORWARDED_FOR'] ) || ! empty( $_SERVER['HTTP_X_REAL_IP'] ) ) ) {
-				self::record_mismatch( $remote );
+			if ( '' !== $remote && self::forwarded_headers_present() ) {
+				self::record_seen( self::MISMATCH_OPTION, $remote );
 			}
 			return $remote;
+		}
+
+		$header = self::proxy_header( $settings );
+		if ( 'x_forwarded_for' !== $header ) {
+			$server_key = self::HEADERS[ $header ];
+			$value      = empty( $_SERVER[ $server_key ] ) ? '' : trim( sanitize_text_field( wp_unslash( $_SERVER[ $server_key ] ) ), " \t[]" );
+			return filter_var( $value, FILTER_VALIDATE_IP ) ? $value : $remote;
 		}
 
 		$hops = array();
@@ -119,6 +153,34 @@ class IP {
 	}
 
 	/**
+	 * The header setting to read, validated against HEADERS.
+	 *
+	 * @param mixed $settings Plugin settings.
+	 * @return string A HEADERS key.
+	 */
+	public static function proxy_header( $settings = null ): string {
+		if ( null === $settings ) {
+			$settings = get_option( 'dragonloginsecurity_settings', array() );
+		}
+		$choice = is_array( $settings ) && isset( $settings['proxy_header'] ) ? (string) $settings['proxy_header'] : '';
+		return isset( self::HEADERS[ $choice ] ) ? $choice : 'x_forwarded_for';
+	}
+
+	/**
+	 * Whether the request carries any forwarded-address header.
+	 *
+	 * @return bool
+	 */
+	private static function forwarded_headers_present(): bool {
+		foreach ( self::HEADERS as $server_key ) {
+			if ( ! empty( $_SERVER[ $server_key ] ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Whether an address is a hop that may forward a request: a configured
 	 * trusted proxy or an internal address.
 	 *
@@ -145,25 +207,55 @@ class IP {
 	}
 
 	/**
-	 * Remember a public address that sent forwarded headers from outside the
-	 * trusted-proxy ranges. Written at most once per MISMATCH_THROTTLE for the
-	 * same address.
+	 * Remember an address that sent forwarded headers the plugin did not read:
+	 * one outside the trusted-proxy ranges, or any while proxy trust is off.
+	 * Written at most once per MISMATCH_THROTTLE for the same address.
 	 *
+	 * @param string $option Option to record it in.
 	 * @param string $remote REMOTE_ADDR.
 	 */
-	private static function record_mismatch( string $remote ): void {
+	private static function record_seen( string $option, string $remote ): void {
 		$now  = time();
-		$last = get_option( self::MISMATCH_OPTION );
+		$last = get_option( $option );
 		if ( is_array( $last ) && ( $last['ip'] ?? '' ) === $remote && (int) ( $last['time'] ?? 0 ) + self::MISMATCH_THROTTLE > $now ) {
 			return;
 		}
 		update_option(
-			self::MISMATCH_OPTION,
+			$option,
 			array(
 				'ip'   => $remote,
 				'time' => $now,
 			),
 			false
+		);
+	}
+
+	/**
+	 * The recorded request that arrived with forwarded headers while proxy
+	 * trust was off, while that still applies: trust is still off and it was
+	 * seen within MISMATCH_TTL. Every visitor behind that proxy shares its
+	 * address for lockouts until trust is configured.
+	 *
+	 * @param int $now Current time (0 for now).
+	 * @return array{ip: string, time: int}|null
+	 */
+	public static function proxy_unconfigured( int $now = 0 ): ?array {
+		$now      = $now > 0 ? $now : time();
+		$settings = get_option( 'dragonloginsecurity_settings', array() );
+		if ( is_array( $settings ) && ! empty( $settings['trust_proxy'] ) ) {
+			return null;
+		}
+		$record = get_option( self::UNCONFIGURED_OPTION );
+		if ( ! is_array( $record ) || empty( $record['ip'] ) || ! is_string( $record['ip'] ) ) {
+			return null;
+		}
+		$time = (int) ( $record['time'] ?? 0 );
+		if ( $time + self::MISMATCH_TTL <= $now ) {
+			return null;
+		}
+		return array(
+			'ip'   => $record['ip'],
+			'time' => $time,
 		);
 	}
 
@@ -249,15 +341,20 @@ class IP {
 		if ( '' === $bits || ! ctype_digit( $bits ) || strlen( $bits ) > 3 ) {
 			return null;
 		}
+		// A prefix shorter than a /8 (IPv4) or /16 (IPv6) covers the whole
+		// internet or a sizeable share of it: on an allow list it would switch
+		// brute-force protection off in one line, and no proxy or office needs it.
 		if ( filter_var( $subnet, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) ) {
+			$min = 8;
 			$max = 32;
 		} elseif ( filter_var( $subnet, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) ) {
+			$min = 16;
 			$max = 128;
 		} else {
 			return null;
 		}
 
-		return (int) $bits <= $max ? $subnet . '/' . (int) $bits : null;
+		return (int) $bits >= $min && (int) $bits <= $max ? $subnet . '/' . (int) $bits : null;
 	}
 
 	/**
