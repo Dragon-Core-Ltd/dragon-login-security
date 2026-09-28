@@ -84,15 +84,17 @@ class Limit_Login {
 	 */
 	public static function bucket( string $ip ): string {
 		$ip = trim( $ip );
-		if ( 1 === preg_match( '/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i', $ip, $m ) ) {
-			return $m[1];
-		}
 		if ( ! filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) ) {
 			return $ip;
 		}
 		$packed = inet_pton( $ip );
 		if ( false === $packed || 16 !== strlen( $packed ) ) {
 			return $ip;
+		}
+		// An IPv4-mapped address, in dotted or hex form, is its IPv4 address.
+		if ( str_repeat( "\0", 10 ) . "\xff\xff" === substr( $packed, 0, 12 ) ) {
+			$v4 = inet_ntop( substr( $packed, 12 ) );
+			return false === $v4 ? $ip : $v4;
 		}
 		$block = inet_ntop( substr( $packed, 0, 8 ) . str_repeat( "\0", 8 ) );
 		return false === $block ? $ip : $block . '/64';
@@ -356,7 +358,8 @@ class Limit_Login {
 	 * @return string
 	 */
 	private function normalise_username( string $username ): string {
-		return strtolower( trim( $username ) );
+		$username = trim( $username );
+		return function_exists( 'mb_strtolower' ) ? mb_strtolower( $username, 'UTF-8' ) : strtolower( $username );
 	}
 
 	/**

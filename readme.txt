@@ -79,6 +79,10 @@ made to that service.
 
 * lbuchs/webauthn (MIT) - https://github.com/lbuchs/WebAuthn - server-side WebAuthn (FIDO2) ceremony handling for passkeys.
 
+== Credits ==
+
+The WordPress.org listing icon is drawn with glyphs from Lucide (https://lucide.dev), ISC License. Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (https://feathericons.com, MIT License). All other copyright (c) for Lucide are held by Lucide Contributors 2022. The plugin itself does not include these icons.
+
 == Changelog ==
 
 = 1.0.17 =
@@ -93,6 +97,17 @@ made to that service.
 * Allow and deny lists refuse ranges that cover the whole internet (shorter than /8 or /16), and an import adds at most 1,000 entries per list.
 * The WP-CLI recovery command also lifts the account's incorrect-code pause.
 * The one-time settings move from the old option name now runs once instead of being checked on every request.
+* Security: a passkey registration is refused when no registration was started (or it expired), instead of being accepted against an empty challenge.
+* Passkeys work on sites whose address contains non-ASCII characters (the relying-party id is the ASCII form browsers use).
+* Forwarded addresses written with a port (Azure, some HAProxy set-ups) are read correctly; only the chosen proxy header is ever read.
+* IPv4-mapped ranges (::ffff:...) on the lists are held to the same floor as IPv4 ranges, so one cannot cover the whole internet.
+* An IPv4 address written in hex-mapped IPv6 form counts as its IPv4 address for lockouts and unlocking; usernames are forgiven case-insensitively beyond ASCII.
+* Backup codes cannot be marked as saved before any exist.
+* The personal-data export counts backup codes the way sign-in does and includes passkeys and lockout records from every site of a network; erasure and an opted-in uninstall remove every record the plugin keeps about a user.
+* On a network, uninstall honours each site's own "delete data" setting.
+* Sign-in and enrolment carry on when Dragon Activity Log is an older version or fails to record an event; the unreadable-authenticator event is registered with it.
+* Fixed: a signed-in two-factor user who opened the login screen again (a "Log in" link, or a site whose sign-in cookie reaches wp-login.php, as on a subdirectory network) was signed out and challenged again instead of being sent on to the dashboard.
+* Hardening: a trusted-device add-on that returns nothing from the should-challenge filter no longer skips the second factor; odd form input (an array where an address is expected, an authenticator row that is not text) is handled without a PHP error.
 
 = 1.0.16 =
 * Security: a user with two-factor sign-in only receives a signed-in session after passing the second step, including after a WooCommerce password reset.

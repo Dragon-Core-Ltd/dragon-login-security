@@ -88,23 +88,29 @@ class Privacy {
 		$items = array();
 
 		$has_totp = '' !== (string) get_user_meta( $user->ID, 'dls_totp_secret', true );
-		$codes    = (array) get_user_meta( $user->ID, 'dls_backup_codes', true );
 		$items[]  = array(
 			'name'  => __( 'Authenticator app (TOTP)', 'dragon-login-security' ),
 			'value' => $has_totp ? __( 'Enrolled (secret stored encrypted; not exportable)', 'dragon-login-security' ) : __( 'Not enrolled', 'dragon-login-security' ),
 		);
 		$items[]  = array(
 			'name'  => __( 'Backup codes remaining', 'dragon-login-security' ),
-			'value' => number_format_i18n( count( array_filter( $codes ) ) ),
+			'value' => number_format_i18n( Provider_Backup_Codes::remaining( $user->ID ) ),
 		);
 
 		global $wpdb;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom credentials table; privacy export runs on demand.
-		$passkeys = $wpdb->get_results(
-			$wpdb->prepare( 'SELECT label, created_at, last_used_at FROM %i WHERE user_id = %d', Plugin::credentials_table(), $user->ID ),
-			ARRAY_A
-		);
-		foreach ( (array) $passkeys as $row ) {
+		// Passkeys on any site of a network count as a factor everywhere, so
+		// every site's are exported, as erasure removes them from every site.
+		$credential_tables = is_multisite() ? Credentials::network_table_names( 'dls_credentials' ) : array( Plugin::credentials_table() );
+		$passkeys          = array();
+		foreach ( $credential_tables as $table ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom credentials table; privacy export runs on demand.
+			$rows     = $wpdb->get_results(
+				$wpdb->prepare( 'SELECT label, created_at, last_used_at FROM %i WHERE user_id = %d', $table, $user->ID ),
+				ARRAY_A
+			);
+			$passkeys = array_merge( $passkeys, (array) $rows );
+		}
+		foreach ( $passkeys as $row ) {
 			$items[] = array(
 				'name'  => __( 'Passkey', 'dragon-login-security' ),
 				'value' => sprintf(
@@ -117,11 +123,15 @@ class Privacy {
 			);
 		}
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom lockouts table; privacy export runs on demand.
-		$lockouts = (int) $wpdb->get_var(
-			$wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE username = %s', Plugin::lockouts_table(), $user->user_login )
-		);
-		$items[]  = array(
+		$lockouts       = 0;
+		$lockout_tables = is_multisite() ? Credentials::network_table_names( 'dls_lockouts' ) : array( Plugin::lockouts_table() );
+		foreach ( $lockout_tables as $table ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom lockouts table; privacy export runs on demand.
+			$lockouts += (int) $wpdb->get_var(
+				$wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE username = %s', $table, $user->user_login )
+			);
+		}
+		$items[] = array(
 			'name'  => __( 'Failed-login records referencing this username', 'dragon-login-security' ),
 			'value' => number_format_i18n( $lockouts ),
 		);
@@ -157,7 +167,7 @@ class Privacy {
 		}
 
 		$removed = false;
-		foreach ( array( 'dls_totp_secret', 'dls_totp_last_step', 'dls_backup_codes', 'dls_backup_codes_confirmed', Two_Factor::CODE_FAILURES_META, Two_Factor::CODE_LOCK_MAILED_META ) as $key ) {
+		foreach ( array( 'dls_totp_secret', 'dls_totp_last_step', 'dls_backup_codes', 'dls_backup_codes_confirmed', Two_Factor::CODE_FAILURES_META, Two_Factor::CODE_LOCK_MAILED_META, Two_Factor::TOTP_UNREADABLE_MAILED_META ) as $key ) {
 			if ( delete_user_meta( $user->ID, $key ) ) {
 				$removed = true;
 			}

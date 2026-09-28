@@ -221,6 +221,9 @@ class Ajax {
 	 */
 	public function backup_confirm(): void {
 		$user_id = $this->guard_self();
+		if ( Provider_Backup_Codes::remaining( $user_id ) < 1 ) {
+			wp_send_json_error( array( 'message' => __( 'Generate backup codes first.', 'dragon-login-security' ) ) );
+		}
 		update_user_meta( $user_id, 'dls_backup_codes_confirmed', 1 );
 		if ( 1 !== (int) get_user_meta( $user_id, 'dls_backup_codes_confirmed', true ) ) {
 			wp_send_json_error( array( 'message' => __( 'Could not record the confirmation. Try again.', 'dragon-login-security' ) ) );

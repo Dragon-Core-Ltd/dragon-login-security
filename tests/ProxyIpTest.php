@@ -66,7 +66,8 @@ class ProxyIpTest extends TestCase {
 		$this->assertSame( '203.0.113.7', $this->resolve( $cf, '173.245.48.9', '203.0.113.7' ) );
 		// A forged prefix loses to the hop the proxy observed.
 		$this->assertSame( '203.0.113.7', $this->resolve( $cf, '10.1.2.3', '9.9.9.9, 203.0.113.7, 173.245.48.1' ) );
-		$this->assertSame( '203.0.113.8', $this->resolve( $cf, '173.245.48.9', null, '203.0.113.8' ) );
+		// Only the chosen header is read: X-Real-IP alone names nobody.
+		$this->assertSame( '173.245.48.9', $this->resolve( $cf, '173.245.48.9', null, '203.0.113.8' ) );
 		// A malformed hop stops the walk at the last trusted address.
 		$this->assertSame( '173.245.48.1', $this->resolve( $cf, '10.1.2.3', '203.0.113.7, junk, 173.245.48.1' ) );
 		// No headers: the proxy itself.
@@ -78,7 +79,7 @@ class ProxyIpTest extends TestCase {
 		// Trust on with no ranges: one proxy assumed, rightmost hop.
 		$one = array( 'trust_proxy' => 1 );
 		$this->assertSame( '203.0.113.7', $this->resolve( $one, '10.0.0.2', '9.9.9.9, 203.0.113.7' ) );
-		$this->assertSame( '203.0.113.8', $this->resolve( $one, '10.0.0.2', null, '203.0.113.8' ) );
+		$this->assertSame( '10.0.0.2', $this->resolve( $one, '10.0.0.2', null, '203.0.113.8' ) );
 		$this->assertSame( '10.0.0.2', $this->resolve( $one, '10.0.0.2' ) );
 	}
 

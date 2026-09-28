@@ -58,7 +58,25 @@ class WebAuthn {
 	 */
 	public static function rp_id_from_url( string $url ): string {
 		$host = wp_parse_url( $url, PHP_URL_HOST );
-		return is_string( $host ) ? strtolower( $host ) : '';
+		return is_string( $host ) ? self::ascii_host( $host ) : '';
+	}
+
+	/**
+	 * A host name in the lower-case ASCII form browsers use for origins and
+	 * relying-party ids: an internationalised name becomes its punycode.
+	 *
+	 * @param string $host Host name.
+	 * @return string
+	 */
+	public static function ascii_host( string $host ): string {
+		$host = strtolower( trim( $host, "[] \t" ) );
+		if ( '' !== $host && 1 !== preg_match( '/^[\x20-\x7e]*$/', $host ) && function_exists( 'idn_to_ascii' ) ) {
+			$ascii = idn_to_ascii( $host, IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46 );
+			if ( is_string( $ascii ) && '' !== $ascii ) {
+				$host = strtolower( $ascii );
+			}
+		}
+		return $host;
 	}
 
 	/**
@@ -72,7 +90,7 @@ class WebAuthn {
 	 * @return bool
 	 */
 	public static function origin_allowed( string $origin, string $rp_id ): bool {
-		$rp_id = strtolower( trim( $rp_id ) );
+		$rp_id = self::ascii_host( $rp_id );
 		if ( '' === $rp_id || '' === $origin ) {
 			return false;
 		}
@@ -81,7 +99,7 @@ class WebAuthn {
 			return false;
 		}
 		$scheme = strtolower( (string) $parts['scheme'] );
-		$host   = strtolower( trim( (string) $parts['host'], '[]' ) );
+		$host   = self::ascii_host( (string) $parts['host'] );
 		if ( 'https' !== $scheme && ! ( 'http' === $scheme && 'localhost' === $host ) ) {
 			return false;
 		}
@@ -203,7 +221,12 @@ class WebAuthn {
 	 * @throws \Exception On verification failure.
 	 */
 	public static function verify_registration( int $user_id, string $client_data_b64, string $attestation_b64 ): array {
-		$challenge   = self::take_challenge( 'dragonloginsecurity_wa_reg_' . $user_id );
+		$challenge = self::take_challenge( 'dragonloginsecurity_wa_reg_' . $user_id );
+		if ( '' === $challenge ) {
+			// No options were issued, or they expired: nothing to verify against,
+			// and an empty expected challenge would match an empty one sent.
+			throw new \RuntimeException( 'No pending passkey registration.' );
+		}
 		$lib         = self::lib();
 		$client_data = self::raw_b64_decode( $client_data_b64 );
 		if ( ! self::origin_allowed( self::client_origin( $client_data ), self::rp_id_from_url( home_url() ) ) ) {

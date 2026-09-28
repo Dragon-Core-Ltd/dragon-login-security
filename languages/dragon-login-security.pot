@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-28T16:42:37+00:00\n"
+"POT-Creation-Date: 2026-09-28T17:33:49+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: dragon-login-security\n"
@@ -117,7 +117,7 @@ msgid "A passkey lets you sign in with your device (Face ID, Touch ID, Windows H
 msgstr ""
 
 #: admin/views/profile-2fa.php:46
-#: includes/class-privacy.php:93
+#: includes/class-privacy.php:92
 msgid "Authenticator app (TOTP)"
 msgstr ""
 
@@ -393,7 +393,11 @@ msgstr ""
 msgid "Backup codes could not be saved. Try again."
 msgstr ""
 
-#: includes/class-ajax.php:226
+#: includes/class-ajax.php:225
+msgid "Generate backup codes first."
+msgstr ""
+
+#: includes/class-ajax.php:229
 msgid "Could not record the confirmation. Try again."
 msgstr ""
 
@@ -414,22 +418,26 @@ msgid "Two-factor disabled"
 msgstr ""
 
 #: includes/class-events.php:30
-msgid "Two-factor passed"
+msgid "Authenticator secret unreadable"
 msgstr ""
 
 #: includes/class-events.php:31
-msgid "Two-factor failed"
+msgid "Two-factor passed"
 msgstr ""
 
 #: includes/class-events.php:32
-msgid "Two-factor skipped (trusted device)"
+msgid "Two-factor failed"
 msgstr ""
 
 #: includes/class-events.php:33
-msgid "Passkey added"
+msgid "Two-factor skipped (trusted device)"
 msgstr ""
 
 #: includes/class-events.php:34
+msgid "Passkey added"
+msgstr ""
+
+#: includes/class-events.php:35
 msgid "Passkey removed"
 msgstr ""
 
@@ -475,19 +483,19 @@ msgstr[1] ""
 msgid "Import failed: the settings could not be saved, so no addresses were added. Try again."
 msgstr ""
 
-#: includes/class-limit-login.php:154
+#: includes/class-limit-login.php:156
 msgid "Too many failed attempts. Please try again later."
 msgstr ""
 
 #. translators: 1: IP address, 2: number of failed attempts.
-#: includes/class-limit-login.php:435
+#: includes/class-limit-login.php:438
 msgid "IP %1$s locked out after %2$s failed attempt"
 msgid_plural "IP %1$s locked out after %2$s failed attempts"
 msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: username.
-#: includes/class-limit-login.php:437
+#: includes/class-limit-login.php:440
 msgid "Failed login for \"%s\""
 msgstr ""
 
@@ -495,44 +503,44 @@ msgstr ""
 msgid "This site uses Dragon Login Security for brute-force protection and two-factor authentication. It stores, in this site&#8217;s own database: each enrolled user&#8217;s authenticator secret (encrypted), backup codes (hashed), and passkey public keys with device labels; and, for brute-force protection, the IP address and attempted username of failed logins. Lockout records are pruned automatically on a retention schedule. No data is sent to any third party."
 msgstr ""
 
-#: includes/class-privacy.php:94
+#: includes/class-privacy.php:93
 msgid "Enrolled (secret stored encrypted; not exportable)"
 msgstr ""
 
-#: includes/class-privacy.php:94
+#: includes/class-privacy.php:93
 msgid "Not enrolled"
 msgstr ""
 
-#: includes/class-privacy.php:97
+#: includes/class-privacy.php:96
 msgid "Backup codes remaining"
 msgstr ""
 
-#: includes/class-privacy.php:109
+#: includes/class-privacy.php:115
 msgid "Passkey"
 msgstr ""
 
 #. translators: 1: passkey label, 2: created date, 3: last-used date
-#: includes/class-privacy.php:112
+#: includes/class-privacy.php:118
 msgid "%1$s (registered %2$s, last used %3$s)"
 msgstr ""
 
-#: includes/class-privacy.php:113
+#: includes/class-privacy.php:119
 msgid "unnamed device"
 msgstr ""
 
-#: includes/class-privacy.php:115
+#: includes/class-privacy.php:121
 msgid "never"
 msgstr ""
 
-#: includes/class-privacy.php:125
+#: includes/class-privacy.php:135
 msgid "Failed-login records referencing this username"
 msgstr ""
 
-#: includes/class-privacy.php:133
+#: includes/class-privacy.php:143
 msgid "Login security"
 msgstr ""
 
-#: includes/class-privacy.php:180
+#: includes/class-privacy.php:190
 msgid "Two-factor enrolment and lockout history removed. The user can log in with their password and re-enrol."
 msgstr ""
 
@@ -572,87 +580,87 @@ msgstr ""
 msgid "You are not allowed to do that."
 msgstr ""
 
-#: includes/class-two-factor.php:577
+#: includes/class-two-factor.php:593
 msgid "Two-factor authentication is required for this account. Create an application password for programmatic access."
 msgstr ""
 
-#: includes/class-two-factor.php:597
+#: includes/class-two-factor.php:613
 msgid "Accounts with two-factor sign-in must use an application password for XML-RPC, not the account password."
 msgstr ""
 
-#: includes/class-two-factor.php:654
+#: includes/class-two-factor.php:686
 msgid "Authenticator secret can no longer be decrypted; the app must be set up again."
 msgstr ""
 
 #. translators: %s: username.
-#: includes/class-two-factor.php:661
-#: includes/class-two-factor.php:1111
+#: includes/class-two-factor.php:693
+#: includes/class-two-factor.php:1143
 msgid "Hello %s,"
 msgstr ""
 
 #. translators: %s: site name.
-#: includes/class-two-factor.php:666
+#: includes/class-two-factor.php:698
 msgid "The authenticator app set up for your account on %s can no longer be verified, because the site's security keys were changed. Codes from the app will not be accepted until it is set up again."
 msgstr ""
 
-#: includes/class-two-factor.php:669
+#: includes/class-two-factor.php:701
 msgid "To sign in, use a backup code or a passkey on the two-factor screen, then set up the authenticator app again from your profile. If you have neither, ask a site administrator to reset your two-factor settings."
 msgstr ""
 
 #. translators: %s: site name.
-#: includes/class-two-factor.php:675
+#: includes/class-two-factor.php:707
 msgid "[%s] Your authenticator app needs setting up again"
 msgstr ""
 
-#: includes/class-two-factor.php:936
+#: includes/class-two-factor.php:968
 msgid "You have logged in successfully."
 msgstr ""
 
-#: includes/class-two-factor.php:950
+#: includes/class-two-factor.php:982
 msgid "Invalid code."
 msgstr ""
 
-#: includes/class-two-factor.php:963
+#: includes/class-two-factor.php:995
 msgid "That code was not correct. Please try again."
 msgstr ""
 
 #. translators: %s: site name.
-#: includes/class-two-factor.php:1105
+#: includes/class-two-factor.php:1137
 msgid "[%s] Unsuccessful two-factor sign-in on your account"
 msgstr ""
 
 #. translators: %s: site name.
-#: includes/class-two-factor.php:1116
+#: includes/class-two-factor.php:1148
 msgid "Someone signed in to %s with your password, then entered incorrect two-factor codes too many times."
 msgstr ""
 
 #. translators: %s: number of minutes.
-#: includes/class-two-factor.php:1121
+#: includes/class-two-factor.php:1153
 msgid "To protect your account, the two-factor step is paused for up to %s minute."
 msgid_plural "To protect your account, the two-factor step is paused for up to %s minutes."
 msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: password reset address.
-#: includes/class-two-factor.php:1131
+#: includes/class-two-factor.php:1163
 msgid "If this was not you, someone else knows your password. Change it now: %s"
 msgstr ""
 
-#: includes/class-two-factor.php:1134
+#: includes/class-two-factor.php:1166
 msgid "Resetting your password also ends the pause."
 msgstr ""
 
-#: includes/class-two-factor.php:1162
+#: includes/class-two-factor.php:1194
 msgid "Too many incorrect codes. Please try again later."
 msgstr ""
 
 #. translators: %s: username.
-#: includes/class-two-factor.php:1262
+#: includes/class-two-factor.php:1294
 msgid "Two-factor passed: %s"
 msgstr ""
 
 #. translators: %s: username.
-#: includes/class-two-factor.php:1264
+#: includes/class-two-factor.php:1296
 msgid "Two-factor failed: %s"
 msgstr ""
 

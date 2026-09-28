@@ -49,13 +49,22 @@ class Integration {
 			return;
 		}
 
-		$logger = \DragonActivityLog\Plugin::get_instance()->logger();
+		$plugin = \DragonActivityLog\Plugin::get_instance();
+		if ( ! is_object( $plugin ) || ! method_exists( $plugin, 'logger' ) ) {
+			return;
+		}
+		$logger = $plugin->logger();
 		if ( ! is_object( $logger ) || ! method_exists( $logger, 'record' ) ) {
 			return;
 		}
 
 		$event['event_code'] = $code;
-		$logger->record( $event );
+		try {
+			$logger->record( $event );
+		} catch ( \Throwable $e ) {
+			// A sign-in or an enrolment must not fail for want of an audit row.
+			unset( $e );
+		}
 	}
 
 	/**

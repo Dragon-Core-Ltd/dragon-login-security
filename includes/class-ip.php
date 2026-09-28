@@ -84,8 +84,9 @@ class IP {
 	 * or internal hop: the first other hop is the client. A public REMOTE_ADDR
 	 * outside the ranges that sends forwarded headers is recorded for the
 	 * misconfiguration notice. The walk stops at a malformed hop and falls back
-	 * to the last trusted one. With no ranges configured, a single proxy is
-	 * assumed and its rightmost forwarded address is used. The single-value
+	 * to the last trusted one. A hop written with a port keeps its address.
+	 * With no ranges configured, a single proxy is assumed and its rightmost
+	 * forwarded address is used. No other header is read in this mode. The single-value
 	 * headers (X-Real-IP, CF-Connecting-IP, True-Client-IP) hold one address,
 	 * used as the client when the request came through a trusted hop.
 	 * HTTP_CLIENT_IP is never read. With proxy trust off, a request carrying
@@ -127,10 +128,8 @@ class IP {
 		if ( ! empty( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) {
 			$xff = sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_FORWARDED_FOR'] ) );
 			foreach ( explode( ',', $xff ) as $hop ) {
-				$hops[] = trim( $hop, " \t[]" );
+				$hops[] = self::hop_address( $hop );
 			}
-		} elseif ( ! empty( $_SERVER['HTTP_X_REAL_IP'] ) ) {
-			$hops[] = trim( sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_REAL_IP'] ) ), " \t[]" );
 		}
 
 		if ( empty( $trusted ) ) {
@@ -150,6 +149,26 @@ class IP {
 			}
 		}
 		return $client;
+	}
+
+	/**
+	 * The address in one forwarded hop. Some proxies (Azure App Service and
+	 * Application Gateway, HAProxy with a port option) append the client's
+	 * port: `203.0.113.5:12345` or `[2001:db8::1]:443`. The port is dropped;
+	 * anything else is returned as written and fails address validation.
+	 *
+	 * @param string $hop One comma-separated X-Forwarded-For entry.
+	 * @return string
+	 */
+	public static function hop_address( string $hop ): string {
+		$hop = trim( $hop );
+		if ( 1 === preg_match( '/^\[([^\]]+)\](?::\d{1,5})?$/', $hop, $m ) ) {
+			return $m[1];
+		}
+		if ( 1 === preg_match( '/^(\d{1,3}(?:\.\d{1,3}){3}):\d{1,5}$/', $hop, $m ) ) {
+			return $m[1];
+		}
+		return $hop;
 	}
 
 	/**
@@ -350,6 +369,12 @@ class IP {
 		} elseif ( filter_var( $subnet, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) ) {
 			$min = 16;
 			$max = 128;
+			// An IPv4-mapped range (::ffff:a.b.c.d/N) covers IPv4 addresses
+			// from /96 up, and below /96 it spans every IPv4 address as well,
+			// so the IPv4 floor applies: at least /104 (a /8 of IPv4).
+			if ( 4 === strlen( (string) self::pack( $subnet ) ) ) {
+				$min = 104;
+			}
 		} else {
 			return null;
 		}

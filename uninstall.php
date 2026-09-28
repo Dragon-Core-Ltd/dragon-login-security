@@ -12,15 +12,19 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 // Respect the site owner's data: nothing is removed unless they explicitly
 // opted in (the "Delete all data on uninstall" setting). Without the opt-in,
 // tables and options survive so a reinstall picks up exactly where it left off.
-if ( ! get_option( 'dragonloginsecurity_delete_data_on_uninstall' ) ) {
-	return;
-}
+// On a network each site's own setting decides for that site.
 
 /**
- * Drop this site's tables and options.
+ * Drop this site's tables and options, if this site opted in.
+ *
+ * @return bool Whether this site opted in and was cleared.
  */
-function dragonloginsecurity_uninstall_site(): void {
+function dragonloginsecurity_uninstall_site(): bool {
 	global $wpdb;
+
+	if ( ! get_option( 'dragonloginsecurity_delete_data_on_uninstall' ) ) {
+		return false;
+	}
 
 	foreach ( array( 'dls_credentials', 'dls_lockouts' ) as $dragonloginsecurity_suffix ) {
 		$dragonloginsecurity_table = $wpdb->prefix . $dragonloginsecurity_suffix;
@@ -30,7 +34,7 @@ function dragonloginsecurity_uninstall_site(): void {
 
 	// Current names plus the pre-1.0.2 dls_ names, in case a 1.0.1 install was
 	// removed before its 1.0.2 migration ever ran.
-	foreach ( array( 'dragonloginsecurity_db_version', 'dragonloginsecurity_settings', 'dragonloginsecurity_pro_pointer', 'dragonloginsecurity_pro_pointer_events', 'dragonloginsecurity_schema_failure', 'dragonloginsecurity_proxy_mismatch', 'dragonloginsecurity_delete_data_on_uninstall', 'dls_db_version', 'dls_settings' ) as $dragonloginsecurity_option ) {
+	foreach ( array( 'dragonloginsecurity_db_version', 'dragonloginsecurity_settings', 'dragonloginsecurity_pro_pointer', 'dragonloginsecurity_pro_pointer_events', 'dragonloginsecurity_schema_failure', 'dragonloginsecurity_proxy_mismatch', 'dragonloginsecurity_proxy_unconfigured', 'dragonloginsecurity_prefix_migrated', 'dragonloginsecurity_delete_data_on_uninstall', 'dls_db_version', 'dls_settings' ) as $dragonloginsecurity_option ) {
 		delete_option( $dragonloginsecurity_option );
 	}
 
@@ -38,8 +42,10 @@ function dragonloginsecurity_uninstall_site(): void {
 	delete_transient( 'dragonloginsecurity_schema_retry' );
 	delete_transient( 'dragonloginsecurity_schema_verified' );
 	wp_clear_scheduled_hook( 'dls_prune_lockouts' );
+	return true;
 }
 
+$dragonloginsecurity_cleared = false;
 if ( is_multisite() ) {
 	$dragonloginsecurity_sites = get_sites(
 		array(
@@ -49,14 +55,19 @@ if ( is_multisite() ) {
 	);
 	foreach ( $dragonloginsecurity_sites as $dragonloginsecurity_site_id ) {
 		switch_to_blog( (int) $dragonloginsecurity_site_id );
-		dragonloginsecurity_uninstall_site();
+		if ( dragonloginsecurity_uninstall_site() ) {
+			$dragonloginsecurity_cleared = true;
+		}
 		restore_current_blog();
 	}
 } else {
-	dragonloginsecurity_uninstall_site();
+	$dragonloginsecurity_cleared = dragonloginsecurity_uninstall_site();
 }
 
-// Per-user 2FA meta is global (one row per user regardless of site).
-foreach ( array( 'dls_totp_secret', 'dls_backup_codes', 'dls_2fa_methods', 'dls_backup_codes_confirmed', 'dls_totp_last_step', 'dls_2fa_failures', 'dragonloginsecurity_2fa_lock_mailed' ) as $dragonloginsecurity_meta ) {
-	delete_metadata( 'user', 0, $dragonloginsecurity_meta, '', true );
+// Per-user 2FA meta is global (one row per user regardless of site): removed
+// once any site asked for its data to go.
+if ( $dragonloginsecurity_cleared ) {
+	foreach ( array( 'dls_totp_secret', 'dls_backup_codes', 'dls_2fa_methods', 'dls_backup_codes_confirmed', 'dls_totp_last_step', 'dls_2fa_failures', 'dragonloginsecurity_2fa_lock_mailed', 'dragonloginsecurity_totp_unreadable_mailed' ) as $dragonloginsecurity_meta ) {
+		delete_metadata( 'user', 0, $dragonloginsecurity_meta, '', true );
+	}
 }

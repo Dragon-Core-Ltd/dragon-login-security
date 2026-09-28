@@ -169,7 +169,7 @@ class Two_Factor {
 		// Hold back the sign-in cookies of a login that will be challenged, and
 		// record the session tokens issued so the challenge can destroy them.
 		add_action( 'wp_authenticate', array( $this, 'note_signon' ), 10, 0 );
-		add_filter( 'authenticate', array( $this, 'hold_cookies_for_challenge' ), PHP_INT_MAX, 1 );
+		add_filter( 'authenticate', array( $this, 'hold_cookies_for_challenge' ), PHP_INT_MAX, 3 );
 		add_filter( 'send_auth_cookies', array( $this, 'filter_send_auth_cookies' ), PHP_INT_MAX, 6 );
 		add_action( 'password_reset', array( $this, 'on_password_reset' ), 10, 1 );
 		add_action( 'after_password_reset', array( $this, 'on_password_reset' ), 10, 1 );
@@ -191,13 +191,27 @@ class Two_Factor {
 	 * At the end of a wp_signon() authenticate pass, decide whether this sign-in
 	 * will be challenged and, if so, hold back its cookies.
 	 *
-	 * @param null|\WP_User|\WP_Error $user Auth result so far (passed through).
+	 * @param null|\WP_User|\WP_Error $user     Auth result so far (passed through).
+	 * @param string                  $username Username as submitted.
+	 * @param string                  $password Password as submitted.
 	 * @return null|\WP_User|\WP_Error
 	 */
-	public function hold_cookies_for_challenge( $user ) {
+	public function hold_cookies_for_challenge( $user, $username = '', $password = '' ) {
 		$in_signon       = $this->in_signon;
 		$this->in_signon = false;
 		if ( ! $in_signon || ! ( $user instanceof \WP_User ) ) {
+			return $user;
+		}
+		// wp_signon() with no credentials (wp-login.php runs one on every
+		// load) lets core's cookie check answer with the user the request is
+		// already signed in as. That is not a sign-in: the browser holds a
+		// valid session for this user, so re-issuing its cookie grants nothing
+		// and there is nothing to challenge.
+		if ( '' === (string) $username && '' === (string) $password
+			&& function_exists( 'wp_validate_auth_cookie' )
+			&& (int) wp_validate_auth_cookie( $this->request_cookie(), 'logged_in' ) === (int) $user->ID ) {
+			$this->decisions[ (int) $user->ID ] = false;
+			$this->cleared[ (int) $user->ID ]   = true;
 			return $user;
 		}
 		if ( $this->will_challenge( $user ) ) {
@@ -466,7 +480,9 @@ class Two_Factor {
 		 * @param bool     $should Whether to challenge (default true).
 		 * @param \WP_User $user   The user who passed primary auth.
 		 */
-		$this->decisions[ $id ] = (bool) apply_filters( 'dragonloginsecurity_should_challenge', true, $user );
+		// Only an explicit false skips the second factor; a callback that
+		// returns nothing is a broken add-on, not a decision.
+		$this->decisions[ $id ] = false !== apply_filters( 'dragonloginsecurity_should_challenge', true, $user );
 		return $this->decisions[ $id ];
 	}
 
@@ -598,6 +614,22 @@ class Two_Factor {
 	}
 
 	/**
+	 * The stored authenticator secret row as stored: '' when none, a string
+	 * ciphertext, or whatever else the row holds (a non-string row counts as
+	 * stored but unreadable, without being cast).
+	 *
+	 * @param int $user_id User id.
+	 * @return mixed
+	 */
+	private function stored_totp( int $user_id ) {
+		$stored = get_user_meta( $user_id, self::TOTP_META, true );
+		if ( null === $stored || false === $stored || '' === $stored ) {
+			return '';
+		}
+		return is_scalar( $stored ) ? (string) $stored : $stored;
+	}
+
+	/**
 	 * Per-user marker that the user has been emailed about an authenticator
 	 * secret that can no longer be read.
 	 */
@@ -611,11 +643,11 @@ class Two_Factor {
 	 * @return string|null
 	 */
 	private function totp_secret( int $user_id ): ?string {
-		$stored = (string) get_user_meta( $user_id, self::TOTP_META, true );
+		$stored = $this->stored_totp( $user_id );
 		if ( '' === $stored ) {
 			return null;
 		}
-		$secret = Crypto::decrypt( $stored );
+		$secret = is_string( $stored ) ? Crypto::decrypt( $stored ) : null;
 		if ( null === $secret ) {
 			$this->totp_unreadable( $user_id );
 			return null;
@@ -690,7 +722,7 @@ class Two_Factor {
 	 * @return string
 	 */
 	public function totp_state( int $user_id ): string {
-		if ( '' === (string) get_user_meta( $user_id, self::TOTP_META, true ) ) {
+		if ( '' === $this->stored_totp( $user_id ) ) {
 			return 'none';
 		}
 		return null === $this->totp_secret( $user_id ) ? 'unreadable' : 'ok';
@@ -705,7 +737,7 @@ class Two_Factor {
 	 * @return bool
 	 */
 	public function user_has_2fa( int $user_id ): bool {
-		if ( '' !== (string) get_user_meta( $user_id, self::TOTP_META, true ) ) {
+		if ( '' !== $this->stored_totp( $user_id ) ) {
 			$this->totp_secret( $user_id );
 			return true;
 		}
@@ -852,7 +884,7 @@ class Two_Factor {
 		if ( '' === $token ) {
 			return false; // Nothing pending: wp-login.php shows its normal form.
 		}
-		$redirect = isset( $_GET['redirect_to'] ) ? esc_url_raw( wp_unslash( $_GET['redirect_to'] ) ) : admin_url();
+		$redirect = isset( $_GET['redirect_to'] ) && is_string( $_GET['redirect_to'] ) ? esc_url_raw( wp_unslash( $_GET['redirect_to'] ) ) : admin_url();
 		$remember = ! empty( $_GET['rememberme'] );
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
@@ -883,7 +915,7 @@ class Two_Factor {
 		$token    = isset( $_POST['dragonloginsecurity_token'] ) ? sanitize_text_field( wp_unslash( $_POST['dragonloginsecurity_token'] ) ) : '';
 		$user_id  = isset( $_POST['dragonloginsecurity_user'] ) ? absint( wp_unslash( $_POST['dragonloginsecurity_user'] ) ) : 0;
 		$method   = isset( $_POST['dragonloginsecurity_method'] ) ? sanitize_key( wp_unslash( $_POST['dragonloginsecurity_method'] ) ) : '';
-		$redirect = isset( $_POST['redirect_to'] ) ? esc_url_raw( wp_unslash( $_POST['redirect_to'] ) ) : admin_url();
+		$redirect = isset( $_POST['redirect_to'] ) && is_string( $_POST['redirect_to'] ) ? esc_url_raw( wp_unslash( $_POST['redirect_to'] ) ) : admin_url();
 		$remember = ! empty( $_POST['rememberme'] );
 		$interim  = ! empty( $_POST['interim-login'] );
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
