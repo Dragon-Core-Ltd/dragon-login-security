@@ -89,6 +89,7 @@ The WordPress.org listing icon is drawn with glyphs from Lucide (https://lucide.
 * Security: the two-factor sign-in form carries its own security token, checked before the code is.
 * Settings, authenticator and passkey requests each check their security token and your permission themselves, and read only the fields they use.
 * Sign-in through wp-login.php, the session-expired popup and WooCommerce My Account works as before.
+* An IP list containing < or > is refused whole and your saved list is kept, with a notice naming the lines.
 
 = 1.0.17 =
 * Security: a password alone no longer signs a two-factor account in through plugins that authenticate each request themselves (HTTP Basic authentication and similar); only the login form, and application passwords, get through.
