@@ -17,6 +17,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Admin {
 
 	/**
+	 * An IP list textarea: any text without '<' or '>'.
+	 */
+	const NO_MARKUP = '/^[^<>]*$/D';
+
+	/**
 	 * Register hooks.
 	 */
 	public function hook(): void {
@@ -240,8 +245,33 @@ class Admin {
 		}
 		check_admin_referer( 'dragonloginsecurity_settings' );
 
+		// The lists are textareas of one IP address or range per line, and the
+		// header is a key; settings_from_input() validates each entry. No
+		// address or range contains '<' or '>', so a list with either is
+		// refused whole: the stored list is kept and its lines are reported,
+		// rather than tags being stripped across lines.
+		$input   = array();
+		$refused = array();
+		foreach ( array( 'allow_ips', 'deny_ips', 'trusted_proxies' ) as $field ) {
+			if ( ! isset( $_POST[ $field ] ) || ! is_string( $_POST[ $field ] ) ) {
+				continue;
+			}
+			$text = filter_var( wp_unslash( $_POST[ $field ] ), FILTER_VALIDATE_REGEXP, array( 'options' => array( 'regexp' => self::NO_MARKUP ) ) );
+			if ( false === $text ) {
+				$refused[ $field ] = (array) preg_split( '/\R/', (string) filter_var( wp_unslash( $_POST[ $field ] ), FILTER_SANITIZE_FULL_SPECIAL_CHARS ) );
+				continue;
+			}
+			$input[ $field ] = $text;
+		}
+		if ( isset( $_POST['proxy_header'] ) ) {
+			$input['proxy_header'] = sanitize_key( wp_unslash( $_POST['proxy_header'] ) );
+		}
+		if ( isset( $_POST['trust_proxy'] ) ) {
+			$input['trust_proxy'] = true;
+		}
+
 		$rejected = array();
-		$settings = self::settings_from_input( wp_unslash( $_POST ), $rejected ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Each field is validated in settings_from_input().
+		$settings = self::keep_refused_lists( self::settings_from_input( $input, $rejected ), get_option( 'dragonloginsecurity_settings', array() ), $refused, $rejected );
 		$saved    = self::persist_settings( $settings );
 		if ( $saved ) {
 			// The proxy setup was reviewed; report only what is seen from now on.
@@ -327,6 +357,31 @@ class Admin {
 			'allow_ips'       => $allow['valid'],
 			'deny_ips'        => $deny['valid'],
 		);
+	}
+
+	/**
+	 * Keep the stored list for every list field refused as a whole, and add
+	 * the refused lines to the entries reported as not saved.
+	 *
+	 * @param array    $settings Settings built from the accepted fields.
+	 * @param mixed    $stored   The stored settings option.
+	 * @param array    $refused  Refused field => its lines, HTML-encoded so the notice names them as typed.
+	 * @param string[] $rejected Entries reported as not saved; extended in place.
+	 * @return array
+	 */
+	public static function keep_refused_lists( array $settings, $stored, array $refused, array &$rejected ): array {
+		$stored = is_array( $stored ) ? $stored : array();
+		foreach ( $refused as $field => $lines ) {
+			$settings[ $field ] = isset( $stored[ $field ] ) && is_array( $stored[ $field ] ) ? array_values( $stored[ $field ] ) : array();
+			foreach ( (array) $lines as $line ) {
+				$line = trim( (string) $line );
+				if ( '' !== $line ) {
+					$rejected[] = $line;
+				}
+			}
+		}
+		$rejected = array_values( array_unique( $rejected ) );
+		return $settings;
 	}
 
 	/**

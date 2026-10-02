@@ -37,30 +37,23 @@ class Ajax {
 	}
 
 	/**
-	 * Shared guard: nonce + edit_user on the target. Returns the target id.
-	 *
-	 * @return int
+	 * End the request: the caller may not manage this user's factors.
 	 */
-	private function guard(): int {
-		check_ajax_referer( 'dls_ajax', 'nonce' );
-		$target = isset( $_POST['user_id'] ) ? absint( wp_unslash( $_POST['user_id'] ) ) : get_current_user_id(); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified above.
-		if ( ! current_user_can( 'edit_user', $target ) ) {
-			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'dragon-login-security' ) ), 403 );
-		}
-		return $target;
+	private function deny(): void {
+		wp_send_json_error( array( 'message' => __( 'Permission denied.', 'dragon-login-security' ) ), 403 );
 	}
 
 	/**
-	 * Enrolment guard: nonce, and the target MUST be the current user. Setting up
-	 * a factor for someone else would let an admin plant their own authenticator
-	 * as another user's second factor, or read that user's backup codes.
+	 * The caller's own user id when the request names their own account, and
+	 * otherwise end the request. Setting up a factor for someone else would let
+	 * an admin plant their own authenticator as another user's second factor,
+	 * or read that user's backup codes.
 	 *
+	 * @param int $target The user the request names.
 	 * @return int
 	 */
-	private function guard_self(): int {
-		check_ajax_referer( 'dls_ajax', 'nonce' );
-		$me     = get_current_user_id();
-		$target = isset( $_POST['user_id'] ) ? absint( wp_unslash( $_POST['user_id'] ) ) : $me; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified above.
+	private function own_account( int $target ): int {
+		$me = get_current_user_id();
 		if ( 0 === $me || $target !== $me ) {
 			wp_send_json_error( array( 'message' => __( 'You can only set up two-factor for your own account.', 'dragon-login-security' ) ), 403 );
 		}
@@ -89,8 +82,12 @@ class Ajax {
 	 * Begin TOTP setup: generate a pending secret, return provisioning data.
 	 */
 	public function totp_setup(): void {
-		$user_id = $this->guard_self();
-		$secret  = Provider_TOTP::generate_secret();
+		check_ajax_referer( 'dls_ajax', 'nonce' );
+		$user_id = $this->own_account( isset( $_POST['user_id'] ) ? absint( wp_unslash( $_POST['user_id'] ) ) : get_current_user_id() );
+		if ( ! current_user_can( 'edit_user', $user_id ) ) {
+			$this->deny();
+		}
+		$secret = Provider_TOTP::generate_secret();
 		set_transient( 'dragonloginsecurity_totp_pending_' . $user_id, Crypto::encrypt( $secret ), 10 * MINUTE_IN_SECONDS );
 
 		$user = get_userdata( $user_id );
@@ -106,10 +103,14 @@ class Ajax {
 	 * Confirm TOTP: verify a code against the pending secret, then enable it.
 	 */
 	public function totp_confirm(): void {
-		$user_id = $this->guard_self();
+		check_ajax_referer( 'dls_ajax', 'nonce' );
+		$user_id = $this->own_account( isset( $_POST['user_id'] ) ? absint( wp_unslash( $_POST['user_id'] ) ) : get_current_user_id() );
+		if ( ! current_user_can( 'edit_user', $user_id ) ) {
+			$this->deny();
+		}
 		$pending = get_transient( 'dragonloginsecurity_totp_pending_' . $user_id );
 		$secret  = is_string( $pending ) ? Crypto::decrypt( $pending ) : null;
-		$code    = isset( $_POST['code'] ) ? sanitize_text_field( wp_unslash( $_POST['code'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in guard().
+		$code    = isset( $_POST['code'] ) ? sanitize_text_field( wp_unslash( $_POST['code'] ) ) : '';
 
 		if ( null === $secret || ! Provider_TOTP::verify( $secret, $code ) ) {
 			wp_send_json_error( array( 'message' => __( 'That code was not correct.', 'dragon-login-security' ) ) );
@@ -129,7 +130,11 @@ class Ajax {
 	 * Disable TOTP.
 	 */
 	public function totp_disable(): void {
-		$user_id = $this->guard();
+		check_ajax_referer( 'dls_ajax', 'nonce' );
+		$user_id = isset( $_POST['user_id'] ) ? absint( wp_unslash( $_POST['user_id'] ) ) : get_current_user_id();
+		if ( ! current_user_can( 'edit_user', $user_id ) ) {
+			$this->deny();
+		}
 		delete_user_meta( $user_id, Two_Factor::TOTP_META );
 		delete_user_meta( $user_id, Two_Factor::TOTP_UNREADABLE_MAILED_META );
 		$this->emit( '2fa.disabled', $user_id );
@@ -149,7 +154,11 @@ class Ajax {
 	 * Return passkey registration options.
 	 */
 	public function passkey_options(): void {
-		$user_id = $this->guard_self();
+		check_ajax_referer( 'dls_ajax', 'nonce' );
+		$user_id = $this->own_account( isset( $_POST['user_id'] ) ? absint( wp_unslash( $_POST['user_id'] ) ) : get_current_user_id() );
+		if ( ! current_user_can( 'edit_user', $user_id ) ) {
+			$this->deny();
+		}
 		$this->require_webauthn();
 		$user = get_userdata( $user_id );
 		wp_send_json_success( WebAuthn::registration_args( $user_id, $user ? $user->user_login : (string) $user_id ) );
@@ -169,11 +178,15 @@ class Ajax {
 	 * Verify + store a passkey registration.
 	 */
 	public function passkey_register(): void {
-		$user_id = $this->guard_self();
+		check_ajax_referer( 'dls_ajax', 'nonce' );
+		$user_id = $this->own_account( isset( $_POST['user_id'] ) ? absint( wp_unslash( $_POST['user_id'] ) ) : get_current_user_id() );
+		if ( ! current_user_can( 'edit_user', $user_id ) ) {
+			$this->deny();
+		}
 		$this->require_webauthn();
-		$client = isset( $_POST['client_data'] ) ? sanitize_text_field( wp_unslash( $_POST['client_data'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in guard().
-		$attest = isset( $_POST['attestation'] ) ? sanitize_text_field( wp_unslash( $_POST['attestation'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in guard().
-		$label  = isset( $_POST['label'] ) ? sanitize_text_field( wp_unslash( $_POST['label'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in guard().
+		$client = isset( $_POST['client_data'] ) ? sanitize_text_field( wp_unslash( $_POST['client_data'] ) ) : '';
+		$attest = isset( $_POST['attestation'] ) ? sanitize_text_field( wp_unslash( $_POST['attestation'] ) ) : '';
+		$label  = isset( $_POST['label'] ) ? sanitize_text_field( wp_unslash( $_POST['label'] ) ) : '';
 
 		try {
 			$cred = WebAuthn::verify_registration( $user_id, $client, $attest );
@@ -181,7 +194,7 @@ class Ajax {
 			wp_send_json_error( array( 'message' => __( 'Passkey registration failed.', 'dragon-login-security' ) ) );
 		}
 
-		$transports = isset( $_POST['transports'] ) ? sanitize_text_field( wp_unslash( $_POST['transports'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in guard().
+		$transports = isset( $_POST['transports'] ) ? sanitize_text_field( wp_unslash( $_POST['transports'] ) ) : '';
 		$row_id     = Credentials::add( $user_id, $cred['credential_id'], $cred['public_key'], $cred['sign_count'], $transports, '' === $label ? self::default_passkey_label() : $label );
 		if ( 0 === $row_id ) {
 			wp_send_json_error( array( 'message' => __( 'The passkey could not be saved. Try again.', 'dragon-login-security' ) ) );
@@ -194,8 +207,12 @@ class Ajax {
 	 * Remove a passkey (owner-scoped).
 	 */
 	public function passkey_remove(): void {
-		$user_id = $this->guard();
-		$id      = isset( $_POST['id'] ) ? absint( wp_unslash( $_POST['id'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in guard().
+		check_ajax_referer( 'dls_ajax', 'nonce' );
+		$user_id = isset( $_POST['user_id'] ) ? absint( wp_unslash( $_POST['user_id'] ) ) : get_current_user_id();
+		if ( ! current_user_can( 'edit_user', $user_id ) ) {
+			$this->deny();
+		}
+		$id = isset( $_POST['id'] ) ? absint( wp_unslash( $_POST['id'] ) ) : 0;
 		if ( $id && Credentials::delete( $id, $user_id ) ) {
 			$this->emit( 'passkey.removed', $user_id );
 			wp_send_json_success();
@@ -207,8 +224,12 @@ class Ajax {
 	 * Generate + store backup codes; return the plaintext once.
 	 */
 	public function backup_generate(): void {
-		$user_id = $this->guard_self();
-		$codes   = Provider_Backup_Codes::generate( 10 );
+		check_ajax_referer( 'dls_ajax', 'nonce' );
+		$user_id = $this->own_account( isset( $_POST['user_id'] ) ? absint( wp_unslash( $_POST['user_id'] ) ) : get_current_user_id() );
+		if ( ! current_user_can( 'edit_user', $user_id ) ) {
+			$this->deny();
+		}
+		$codes = Provider_Backup_Codes::generate( 10 );
 		if ( ! Provider_Backup_Codes::store( $user_id, $codes ) ) {
 			wp_send_json_error( array( 'message' => __( 'Backup codes could not be saved. Try again.', 'dragon-login-security' ) ) );
 		}
@@ -220,7 +241,11 @@ class Ajax {
 	 * Mark backup codes as downloaded/confirmed (satisfies enforcement policy).
 	 */
 	public function backup_confirm(): void {
-		$user_id = $this->guard_self();
+		check_ajax_referer( 'dls_ajax', 'nonce' );
+		$user_id = $this->own_account( isset( $_POST['user_id'] ) ? absint( wp_unslash( $_POST['user_id'] ) ) : get_current_user_id() );
+		if ( ! current_user_can( 'edit_user', $user_id ) ) {
+			$this->deny();
+		}
 		if ( Provider_Backup_Codes::remaining( $user_id ) < 1 ) {
 			wp_send_json_error( array( 'message' => __( 'Generate backup codes first.', 'dragon-login-security' ) ) );
 		}

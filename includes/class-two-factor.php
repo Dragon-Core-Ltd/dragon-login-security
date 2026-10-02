@@ -28,6 +28,11 @@ class Two_Factor {
 	const TOTP_META = 'dls_totp_secret';
 
 	/**
+	 * Challenge form field carrying the nonce for the challenged user.
+	 */
+	const NONCE_FIELD = 'dragonloginsecurity_2fa_nonce';
+
+	/**
 	 * The user an application password (a distinct, 2FA-exempt credential)
 	 * authenticated during the current authenticate run, or 0.
 	 *
@@ -42,6 +47,13 @@ class Two_Factor {
 	 * @var bool
 	 */
 	private bool $in_signon = false;
+
+	/**
+	 * Whether the sign-in wp_signon() is running asked to be remembered.
+	 *
+	 * @var bool
+	 */
+	private bool $signon_remember = false;
 
 	/**
 	 * The user whose sign-in cookies are being held back pending the second
@@ -169,6 +181,7 @@ class Two_Factor {
 		// Hold back the sign-in cookies of a login that will be challenged, and
 		// record the session tokens issued so the challenge can destroy them.
 		add_action( 'wp_authenticate', array( $this, 'note_signon' ), 10, 0 );
+		add_filter( 'secure_signon_cookie', array( $this, 'note_remember' ), 10, 2 );
 		add_filter( 'authenticate', array( $this, 'hold_cookies_for_challenge' ), PHP_INT_MAX, 3 );
 		add_filter( 'send_auth_cookies', array( $this, 'filter_send_auth_cookies' ), PHP_INT_MAX, 6 );
 		add_action( 'password_reset', array( $this, 'on_password_reset' ), 10, 1 );
@@ -184,7 +197,32 @@ class Two_Factor {
 	 * authenticates, then sets the cookies and fires wp_login).
 	 */
 	public function note_signon(): void {
-		$this->in_signon = true;
+		$this->in_signon       = true;
+		$this->signon_remember = false;
+	}
+
+	/**
+	 * Note the remember-me choice of the sign-in wp_signon() is running. Core
+	 * passes its resolved credentials to this filter just before it
+	 * authenticates; the secure-cookie flag is returned unchanged.
+	 *
+	 * @param bool|mixed $secure_cookie Whether the cookie should be secure.
+	 * @param array      $credentials   The sign-in credentials, with a boolean 'remember'.
+	 * @return bool|mixed
+	 */
+	public function note_remember( $secure_cookie, $credentials = array() ) {
+		$this->signon_remember = is_array( $credentials ) && ! empty( $credentials['remember'] );
+		return $secure_cookie;
+	}
+
+	/**
+	 * The nonce action of the challenge form for a user.
+	 *
+	 * @param int $user_id The challenged user.
+	 * @return string
+	 */
+	public static function nonce_action( int $user_id ): string {
+		return 'dragonloginsecurity_2fa_' . $user_id;
 	}
 
 	/**
@@ -803,22 +841,26 @@ class Two_Factor {
 			exit;
 		}
 
+		// wp-login.php sets $interim_login before it signs the user in.
 		$on_login_screen = function_exists( 'login_header' );
 		$redirect        = self::requested_redirect( $on_login_screen );
-		$remember        = ! empty( $_REQUEST['rememberme'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Non-sensitive remember flag; the factor is still required.
-		$interim         = $on_login_screen && ! empty( $_REQUEST['interim-login'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Display mode only (the session-expiry popup).
+		$remember        = $this->signon_remember;
+		$interim         = $on_login_screen && ! empty( $GLOBALS['interim_login'] );
 		$token           = Login_Token::create( $user->ID );
 
-		if ( ! $on_login_screen ) {
+		if ( ! $on_login_screen || self::request_is_signed_in() ) {
 			// Signed in from a form outside wp-login.php (such as a WooCommerce
 			// account page): continue the challenge on the login screen, then
-			// return to where the sign-in started. wp_redirect, not
+			// return to where the sign-in started. A request that arrived with
+			// a sign-in cookie (even an expired one) continues there too: this
+			// response clears that cookie, and the form's nonce must be issued
+			// to the signed-out browser that will submit it. wp_redirect, not
 			// wp_safe_redirect: the address is built here from site_url(),
 			// whose host differs from home_url()'s on a site with WordPress in
 			// its own domain, and wp_safe_redirect would swap it for admin_url()
 			// with no challenge to show. The redirect_to it carries is re-checked
 			// by wp_safe_redirect once the factor passes.
-			wp_redirect( self::challenge_url( $token, $redirect, $remember ) ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- Plugin-built login-screen address; see above.
+			wp_redirect( self::challenge_url( $token, $redirect, $remember, $interim ) ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- Plugin-built login-screen address; see above.
 			exit;
 		}
 
@@ -838,10 +880,11 @@ class Two_Factor {
 	 * @return string
 	 */
 	public static function requested_redirect( bool $on_login_screen ): string {
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- The login token is the CSRF secret; this is a UX redirect target only, re-validated by wp_safe_redirect.
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- The sign-in form's redirect target, read after wp_signon() verified the password; re-validated by wp_safe_redirect.
 		foreach ( $on_login_screen ? array( 'redirect_to' ) : array( 'redirect_to', 'redirect' ) as $field ) {
-			if ( isset( $_REQUEST[ $field ] ) && is_string( $_REQUEST[ $field ] ) && '' !== $_REQUEST[ $field ] ) {
-				return esc_url_raw( wp_unslash( $_REQUEST[ $field ] ) );
+			$target = isset( $_REQUEST[ $field ] ) && is_string( $_REQUEST[ $field ] ) ? esc_url_raw( wp_unslash( $_REQUEST[ $field ] ) ) : '';
+			if ( '' !== $target ) {
+				return $target;
 			}
 		}
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
@@ -860,16 +903,30 @@ class Two_Factor {
 	 * @param string $token    Pending login token (single use).
 	 * @param string $redirect Where to go after the factor passes.
 	 * @param bool   $remember Remember-me flag.
+	 * @param bool   $interim  Whether the sign-in is the session-expiry popup.
 	 * @return string
 	 */
-	public static function challenge_url( string $token, string $redirect, bool $remember ): string {
+	public static function challenge_url( string $token, string $redirect, bool $remember, bool $interim = false ): string {
 		$url  = site_url( 'wp-login.php?action=dragonloginsecurity_2fa', 'login' );
 		$url .= '&dragonloginsecurity_token=' . rawurlencode( $token );
 		$url .= '&redirect_to=' . rawurlencode( $redirect );
 		if ( $remember ) {
 			$url .= '&rememberme=forever';
 		}
+		if ( $interim ) {
+			$url .= '&interim-login=1';
+		}
 		return $url;
+	}
+
+	/**
+	 * Whether the request arrived signed in, or with a sign-in cookie that
+	 * names a session, valid or not. Core binds a nonce to both.
+	 *
+	 * @return bool
+	 */
+	private static function request_is_signed_in(): bool {
+		return '' !== wp_get_session_token() || 0 !== get_current_user_id();
 	}
 
 	/**
@@ -886,6 +943,7 @@ class Two_Factor {
 		}
 		$redirect = isset( $_GET['redirect_to'] ) && is_string( $_GET['redirect_to'] ) ? esc_url_raw( wp_unslash( $_GET['redirect_to'] ) ) : admin_url();
 		$remember = ! empty( $_GET['rememberme'] );
+		$interim  = ! empty( $_GET['interim-login'] );
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 		$user_id = Login_Token::user_for( $token );
@@ -895,8 +953,12 @@ class Two_Factor {
 			exit;
 		}
 
+		// wp-login.php sets this global only after login_form_* actions run; the
+		// login screen chrome reads it.
+		$GLOBALS['interim_login'] = $interim; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- wp-login.php's own display flag for the session-expiry popup.
+
 		nocache_headers();
-		$this->render_challenge( $user, Login_Token::create( $user_id ), $redirect, $remember, '', false );
+		$this->render_challenge( $user, Login_Token::create( $user_id ), $redirect, $remember, '', $interim );
 		return true;
 	}
 
@@ -911,14 +973,29 @@ class Two_Factor {
 			return;
 		}
 
-		// phpcs:disable WordPress.Security.NonceVerification.Missing -- The single-use login token IS the CSRF/anti-bypass secret; verified below before any state change.
+		// The form's nonce is bound to the user it was shown to and is checked
+		// before anything else; the single-use login token below is the secret
+		// that proves the password step passed.
+		$user_id = isset( $_POST['dragonloginsecurity_user'] ) ? absint( wp_unslash( $_POST['dragonloginsecurity_user'] ) ) : 0;
+		$nonce   = isset( $_POST[ self::NONCE_FIELD ] ) ? sanitize_key( wp_unslash( $_POST[ self::NONCE_FIELD ] ) ) : '';
+		if ( ! wp_verify_nonce( $nonce, self::nonce_action( $user_id ) ) ) {
+			wp_safe_redirect( wp_login_url() );
+			exit;
+		}
+
 		$token    = isset( $_POST['dragonloginsecurity_token'] ) ? sanitize_text_field( wp_unslash( $_POST['dragonloginsecurity_token'] ) ) : '';
-		$user_id  = isset( $_POST['dragonloginsecurity_user'] ) ? absint( wp_unslash( $_POST['dragonloginsecurity_user'] ) ) : 0;
 		$method   = isset( $_POST['dragonloginsecurity_method'] ) ? sanitize_key( wp_unslash( $_POST['dragonloginsecurity_method'] ) ) : '';
 		$redirect = isset( $_POST['redirect_to'] ) && is_string( $_POST['redirect_to'] ) ? esc_url_raw( wp_unslash( $_POST['redirect_to'] ) ) : admin_url();
 		$remember = ! empty( $_POST['rememberme'] );
 		$interim  = ! empty( $_POST['interim-login'] );
-		// phpcs:enable WordPress.Security.NonceVerification.Missing
+		$factor   = array(
+			'code'          => isset( $_POST['dragonloginsecurity_code'] ) ? sanitize_text_field( wp_unslash( $_POST['dragonloginsecurity_code'] ) ) : '',
+			'token'         => isset( $_POST['dragonloginsecurity_wa_token'] ) ? sanitize_text_field( wp_unslash( $_POST['dragonloginsecurity_wa_token'] ) ) : '',
+			'credential_id' => isset( $_POST['dragonloginsecurity_wa_id'] ) ? sanitize_text_field( wp_unslash( $_POST['dragonloginsecurity_wa_id'] ) ) : '',
+			'client_data'   => isset( $_POST['dragonloginsecurity_wa_client'] ) ? sanitize_text_field( wp_unslash( $_POST['dragonloginsecurity_wa_client'] ) ) : '',
+			'auth_data'     => isset( $_POST['dragonloginsecurity_wa_auth'] ) ? sanitize_text_field( wp_unslash( $_POST['dragonloginsecurity_wa_auth'] ) ) : '',
+			'signature'     => isset( $_POST['dragonloginsecurity_wa_sig'] ) ? sanitize_text_field( wp_unslash( $_POST['dragonloginsecurity_wa_sig'] ) ) : '',
+		);
 
 		// wp-login.php sets this global only after login_form_* actions run; the
 		// login screen chrome reads it.
@@ -947,7 +1024,7 @@ class Two_Factor {
 			exit;
 		}
 
-		if ( $this->validate_factor( $user_id, $method ) ) {
+		if ( $this->validate_factor( $user_id, $method, $factor ) ) {
 			$limit->clear_user( IP::current(), $user );
 			delete_user_meta( $user_id, self::CODE_FAILURES_META );
 			$this->cleared[ $user_id ] = true;
@@ -1201,18 +1278,18 @@ class Two_Factor {
 	 *
 	 * @param int    $user_id User id.
 	 * @param string $method  'totp' | 'backup' | 'passkey'.
+	 * @param array  $factor  Submitted fields: code, and the passkey assertion's
+	 *                        token, credential_id, client_data, auth_data, signature.
 	 * @return bool
 	 */
-	private function validate_factor( int $user_id, string $method ): bool {
-		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Guarded by the verified login token in handle_submit().
+	private function validate_factor( int $user_id, string $method, array $factor ): bool {
 		switch ( $method ) {
 			case 'totp':
 				$secret = $this->totp_secret( $user_id );
-				$code   = isset( $_POST['dragonloginsecurity_code'] ) ? sanitize_text_field( wp_unslash( $_POST['dragonloginsecurity_code'] ) ) : '';
 				if ( null === $secret ) {
 					return false;
 				}
-				$step = Provider_TOTP::verify_step( $secret, $code );
+				$step = Provider_TOTP::verify_step( $secret, (string) ( $factor['code'] ?? '' ) );
 				if ( $step < 0 ) {
 					return false;
 				}
@@ -1221,22 +1298,20 @@ class Two_Factor {
 				return Provider_TOTP::consume_step( $user_id, $step );
 
 			case 'backup':
-				$code = isset( $_POST['dragonloginsecurity_code'] ) ? sanitize_text_field( wp_unslash( $_POST['dragonloginsecurity_code'] ) ) : '';
-				return Provider_Backup_Codes::verify_and_consume( $user_id, $code );
+				return Provider_Backup_Codes::verify_and_consume( $user_id, (string) ( $factor['code'] ?? '' ) );
 
 			case 'passkey':
 				return Provider_Passkey::validate(
 					$user_id,
 					array(
-						'token'         => isset( $_POST['dragonloginsecurity_wa_token'] ) ? sanitize_text_field( wp_unslash( $_POST['dragonloginsecurity_wa_token'] ) ) : '',
-						'credential_id' => isset( $_POST['dragonloginsecurity_wa_id'] ) ? sanitize_text_field( wp_unslash( $_POST['dragonloginsecurity_wa_id'] ) ) : '',
-						'client_data'   => isset( $_POST['dragonloginsecurity_wa_client'] ) ? sanitize_text_field( wp_unslash( $_POST['dragonloginsecurity_wa_client'] ) ) : '',
-						'auth_data'     => isset( $_POST['dragonloginsecurity_wa_auth'] ) ? sanitize_text_field( wp_unslash( $_POST['dragonloginsecurity_wa_auth'] ) ) : '',
-						'signature'     => isset( $_POST['dragonloginsecurity_wa_sig'] ) ? sanitize_text_field( wp_unslash( $_POST['dragonloginsecurity_wa_sig'] ) ) : '',
+						'token'         => (string) ( $factor['token'] ?? '' ),
+						'credential_id' => (string) ( $factor['credential_id'] ?? '' ),
+						'client_data'   => (string) ( $factor['client_data'] ?? '' ),
+						'auth_data'     => (string) ( $factor['auth_data'] ?? '' ),
+						'signature'     => (string) ( $factor['signature'] ?? '' ),
 					)
 				);
 		}
-		// phpcs:enable WordPress.Security.NonceVerification.Missing
 		return false;
 	}
 

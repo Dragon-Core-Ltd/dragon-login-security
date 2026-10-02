@@ -133,19 +133,51 @@ if ( ! function_exists( 'wp_unslash' ) ) {
 		return is_array( $value ) ? array_map( 'wp_unslash', $value ) : ( is_string( $value ) ? stripslashes( $value ) : $value );
 	}
 }
-if ( ! function_exists( 'sanitize_text_field' ) ) {
+if ( ! function_exists( 'dls_test_sanitize_text_fields' ) ) {
 	/**
-	 * Close to core: tags stripped, line breaks/tabs and extra whitespace
-	 * collapsed, ends trimmed; invalid UTF-8 gives ''.
+	 * Core 7.1's _sanitize_text_fields(): arrays and objects give '', invalid
+	 * UTF-8 gives '', a lone '<' is escaped (wp_pre_kses_less_than) before
+	 * tags are stripped (wp_strip_all_tags), whitespace is collapsed unless
+	 * line breaks are kept, ends are trimmed and %XX octets removed.
 	 */
-	function sanitize_text_field( $str ) {
-		$str = (string) $str;
-		if ( '' !== $str && 1 !== preg_match( '//u', $str ) ) {
+	function dls_test_sanitize_text_fields( $str, $keep_newlines = false ) {
+		if ( is_object( $str ) || is_array( $str ) ) {
 			return '';
 		}
-		$str = strip_tags( $str );
-		$str = preg_replace( '/[\r\n\t ]+/', ' ', $str );
-		return trim( (string) $str );
+		$filtered = (string) $str;
+		if ( '' !== $filtered && 1 !== preg_match( '//u', $filtered ) ) {
+			return '';
+		}
+		if ( false !== strpos( $filtered, '<' ) ) {
+			$filtered = preg_replace_callback(
+				'%<[^>]*?((?=<)|>|$)%',
+				static function ( $m ) {
+					return false === strpos( $m[0], '>' ) ? htmlspecialchars( $m[0], ENT_QUOTES, 'UTF-8', false ) : $m[0];
+				},
+				$filtered
+			);
+			$filtered = preg_replace( '@<(script|style)[^>]*?>.*?</\\1>@si', '', $filtered );
+			$filtered = trim( strip_tags( $filtered ) );
+			$filtered = str_replace( "<\n", "&lt;\n", $filtered );
+		}
+		if ( ! $keep_newlines ) {
+			$filtered = preg_replace( '/[\r\n\t ]+/', ' ', $filtered );
+		}
+		$filtered = trim( $filtered );
+		$found    = false;
+		while ( preg_match( '/%[a-f0-9]{2}/i', $filtered, $match ) ) {
+			$filtered = str_replace( $match[0], '', $filtered );
+			$found    = true;
+		}
+		if ( $found ) {
+			$filtered = trim( preg_replace( '/ +/', ' ', $filtered ) );
+		}
+		return $filtered;
+	}
+}
+if ( ! function_exists( 'sanitize_text_field' ) ) {
+	function sanitize_text_field( $str ) {
+		return dls_test_sanitize_text_fields( $str, false );
 	}
 }
 
@@ -664,9 +696,109 @@ if ( ! function_exists( 'wp_unschedule_event' ) ) {
 // Capability stub driven by a global so notice tests can flip admin status.
 $GLOBALS['dls_test_is_admin'] = true;
 if ( ! function_exists( 'current_user_can' ) ) {
-	function current_user_can( $cap ) {
-		unset( $cap );
+	/**
+	 * As core's map_meta_cap(): a signed-in user may always edit their own
+	 * account (edit_user on their own id needs no capability). Everything else
+	 * follows the admin flag.
+	 */
+	function current_user_can( $cap, ...$args ) {
+		$me = (int) ( $GLOBALS['dls_test_current_user'] ?? 0 );
+		if ( 'edit_user' === $cap && $me > 0 && isset( $args[0] ) && (int) $args[0] === $me ) {
+			return true;
+		}
 		return (bool) $GLOBALS['dls_test_is_admin'];
+	}
+}
+
+// Nonces as core computes them: an HMAC of the tick, the action, the user id
+// (nonce_user_logged_out for a visitor) and the session token named by the
+// request's logged-in cookie, valid for this tick and the one before.
+if ( ! function_exists( 'wp_hash' ) ) {
+	function wp_hash( $data, $scheme = 'auth', $algo = 'md5' ) {
+		return hash_hmac( $algo, (string) $data, wp_salt( $scheme ) );
+	}
+}
+if ( ! function_exists( 'wp_get_session_token' ) ) {
+	function wp_get_session_token() {
+		$cookie = wp_parse_auth_cookie( '', 'logged_in' );
+		return ! empty( $cookie['token'] ) ? $cookie['token'] : '';
+	}
+}
+if ( ! function_exists( 'wp_nonce_tick' ) ) {
+	function wp_nonce_tick( $action = -1 ) {
+		$nonce_life = apply_filters( 'nonce_life', DAY_IN_SECONDS, $action );
+		return ceil( time() / ( $nonce_life / 2 ) );
+	}
+}
+if ( ! function_exists( 'dls_test_nonce_uid' ) ) {
+	function dls_test_nonce_uid( $action ) {
+		$uid = (int) ( $GLOBALS['dls_test_current_user'] ?? 0 );
+		return $uid ? $uid : (int) apply_filters( 'nonce_user_logged_out', $uid, $action );
+	}
+}
+if ( ! function_exists( 'wp_create_nonce' ) ) {
+	function wp_create_nonce( $action = -1 ) {
+		$uid   = dls_test_nonce_uid( $action );
+		$token = wp_get_session_token();
+		$i     = wp_nonce_tick( $action );
+		return substr( wp_hash( $i . '|' . $action . '|' . $uid . '|' . $token, 'nonce' ), -12, 10 );
+	}
+}
+if ( ! function_exists( 'wp_verify_nonce' ) ) {
+	function wp_verify_nonce( $nonce, $action = -1 ) {
+		$nonce = (string) $nonce;
+		$uid   = dls_test_nonce_uid( $action );
+		if ( empty( $nonce ) ) {
+			return false;
+		}
+		$token = wp_get_session_token();
+		$i     = wp_nonce_tick( $action );
+		if ( hash_equals( substr( wp_hash( $i . '|' . $action . '|' . $uid . '|' . $token, 'nonce' ), -12, 10 ), $nonce ) ) {
+			return 1;
+		}
+		if ( hash_equals( substr( wp_hash( ( $i - 1 ) . '|' . $action . '|' . $uid . '|' . $token, 'nonce' ), -12, 10 ), $nonce ) ) {
+			return 2;
+		}
+		do_action( 'wp_verify_nonce_failed', $nonce, $action, null, $token );
+		return false;
+	}
+}
+if ( ! function_exists( 'wp_nonce_field' ) ) {
+	function wp_nonce_field( $action = -1, $name = '_wpnonce', $referer = true, $display = true ) {
+		$name        = htmlspecialchars( (string) $name, ENT_QUOTES );
+		$nonce_field = '<input type="hidden" id="' . $name . '" name="' . $name . '" value="' . wp_create_nonce( $action ) . '" />';
+		if ( $referer ) {
+			$nonce_field .= '<input type="hidden" name="_wp_http_referer" value="" />';
+		}
+		if ( $display ) {
+			echo $nonce_field; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		}
+		return $nonce_field;
+	}
+}
+if ( ! function_exists( 'map_deep' ) ) {
+	/**
+	 * Core's map_deep(): the callback on every scalar leaf of arrays and
+	 * object properties.
+	 */
+	function map_deep( $value, $callback ) {
+		if ( is_array( $value ) ) {
+			foreach ( $value as $index => $item ) {
+				$value[ $index ] = map_deep( $item, $callback );
+			}
+		} elseif ( is_object( $value ) ) {
+			foreach ( get_object_vars( $value ) as $name => $item ) {
+				$value->$name = map_deep( $item, $callback );
+			}
+		} else {
+			$value = call_user_func( $callback, $value );
+		}
+		return $value;
+	}
+}
+if ( ! function_exists( 'sanitize_textarea_field' ) ) {
+	function sanitize_textarea_field( $str ) {
+		return dls_test_sanitize_text_fields( $str, true );
 	}
 }
 if ( ! function_exists( 'esc_html' ) ) {

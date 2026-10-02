@@ -27,6 +27,7 @@ login_header( __( 'Two-Factor Authentication', 'dragon-login-security' ) );
 <form name="dragonloginsecurity_2fa_form" id="dragonloginsecurity_2fa_form" action="<?php echo esc_url( site_url( 'wp-login.php?action=dragonloginsecurity_2fa', 'login_post' ) ); ?>" method="post">
 	<input type="hidden" name="dragonloginsecurity_token" value="<?php echo esc_attr( $dragonloginsecurity_c['token'] ); ?>">
 	<input type="hidden" name="dragonloginsecurity_user" value="<?php echo esc_attr( (string) $dragonloginsecurity_c['user']->ID ); ?>">
+	<?php wp_nonce_field( Two_Factor::nonce_action( (int) $dragonloginsecurity_c['user']->ID ), Two_Factor::NONCE_FIELD, false ); ?>
 	<input type="hidden" name="dragonloginsecurity_method" id="dragonloginsecurity_method" value="<?php echo esc_attr( $dragonloginsecurity_has( 'totp' ) ? 'totp' : 'backup' ); ?>">
 	<input type="hidden" name="redirect_to" value="<?php echo esc_url( $dragonloginsecurity_c['redirect'] ); ?>">
 	<input type="hidden" name="rememberme" value="<?php echo $dragonloginsecurity_c['remember'] ? 'forever' : ''; ?>">

@@ -4,7 +4,7 @@ Tags: two factor, 2fa, passkeys, login security, brute force
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.0.17
+Stable tag: 1.0.18
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -84,6 +84,11 @@ made to that service.
 The WordPress.org listing icon is drawn with glyphs from Lucide (https://lucide.dev), ISC License. Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (https://feathericons.com, MIT License). All other copyright (c) for Lucide are held by Lucide Contributors 2022. The plugin itself does not include these icons.
 
 == Changelog ==
+
+= 1.0.18 =
+* Security: the two-factor sign-in form carries its own security token, checked before the code is.
+* Settings, authenticator and passkey requests each check their security token and your permission themselves, and read only the fields they use.
+* Sign-in through wp-login.php, the session-expired popup and WooCommerce My Account works as before.
 
 = 1.0.17 =
 * Security: a password alone no longer signs a two-factor account in through plugins that authenticate each request themselves (HTTP Basic authentication and similar); only the login form, and application passwords, get through.
@@ -190,6 +195,9 @@ The WordPress.org listing icon is drawn with glyphs from Lucide (https://lucide.
 * Initial release.
 
 == Upgrade Notice ==
+
+= 1.0.18 =
+Hardening: the two-factor form carries its own security token. A two-factor page left open during the update asks you to sign in again once.
 
 = 1.0.17 =
 Security update: closes a password-only sign-in through request-authenticating plugins, and stops login-page loads extending a lockout. Please update.

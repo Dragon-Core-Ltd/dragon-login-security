@@ -149,6 +149,7 @@ class SecondFactorSubmitTest extends TestCase {
 			'dragonloginsecurity_method' => 'totp',
 			'dragonloginsecurity_code'   => $code,
 			'redirect_to'                => 'https://example.test/wp-admin/',
+			Two_Factor::NONCE_FIELD      => wp_create_nonce( Two_Factor::nonce_action( 1 ) ),
 		);
 		$level = ob_get_level();
 		ob_start();

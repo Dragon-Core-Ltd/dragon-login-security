@@ -189,13 +189,19 @@ class NetworkPasskeyGuidanceTest extends TestCase {
 			// A live challenge, so the passkey attempt gets past the token check
 			// and is refused at the credential lookup.
 			set_transient( 'dragonloginsecurity_wa_auth_anything', base64_encode( 'challenge-bytes' ), 300 );
-			$_POST = $post;
-			$this->assertFalse( $validate->invoke( $tf, 8, (string) $method ), "method '$method' must not pass" );
+			$factor = array(
+				'code'          => $post['dragonloginsecurity_code'] ?? '',
+				'token'         => $post['dragonloginsecurity_wa_token'] ?? '',
+				'credential_id' => $post['dragonloginsecurity_wa_id'] ?? '',
+				'client_data'   => $post['dragonloginsecurity_wa_client'] ?? '',
+				'auth_data'     => $post['dragonloginsecurity_wa_auth'] ?? '',
+				'signature'     => $post['dragonloginsecurity_wa_sig'] ?? '',
+			);
+			$this->assertFalse( $validate->invoke( $tf, 8, (string) $method, $factor ), "method '$method' must not pass" );
 			if ( 'passkey' === $method ) {
 				$this->assertFalse( get_transient( 'dragonloginsecurity_wa_auth_anything' ), 'the challenge was consumed, so the token check passed' );
 			}
 		}
-		$_POST = array();
 
 		// Verification looks only in this site's table: site A's credential is
 		// invisible here and found only on site A.

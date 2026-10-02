@@ -137,6 +137,8 @@ class ScenarioChallengeSubmitTest extends TestCase {
 			'dragonloginsecurity_method' => 'totp',
 			'redirect_to'                => self::ADMIN,
 		);
+		// The nonce the challenge form shown to that user carries.
+		$_POST += array( Two_Factor::NONCE_FIELD => wp_create_nonce( Two_Factor::nonce_action( absint( $_POST['dragonloginsecurity_user'] ) ) ) );
 		$level                     = ob_get_level();
 		ob_start();
 		try {
