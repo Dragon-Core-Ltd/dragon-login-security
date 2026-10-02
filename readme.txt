@@ -90,6 +90,7 @@ The WordPress.org listing icon is drawn with glyphs from Lucide (https://lucide.
 * Settings, authenticator and passkey requests each check their security token and your permission themselves, and read only the fields they use.
 * Sign-in through wp-login.php, the session-expired popup and WooCommerce My Account works as before.
 * An IP list containing < or > is refused whole and your saved list is kept, with a notice naming the lines.
+* Fixed: uninstall deletes data only when the opt-in is clearly on (1, true, yes or on), not for a value set to "false" or "no".
 
 = 1.0.17 =
 * Security: a password alone no longer signs a two-factor account in through plugins that authenticate each request themselves (HTTP Basic authentication and similar); only the login form, and application passwords, get through.

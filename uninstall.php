@@ -15,6 +15,24 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 // On a network each site's own setting decides for that site.
 
 /**
+ * Whether a stored "delete data on uninstall" value is a clear opt-in. Only
+ * true, 1 and the words true, yes and on (any case) count; anything else
+ * keeps the data.
+ *
+ * @param mixed $value Stored option value.
+ * @return bool
+ */
+function dragonloginsecurity_uninstall_opted_in( $value ): bool {
+	if ( true === $value || 1 === $value ) {
+		return true;
+	}
+	if ( ! is_string( $value ) ) {
+		return false;
+	}
+	return in_array( strtolower( trim( $value ) ), array( '1', 'true', 'yes', 'on' ), true );
+}
+
+/**
  * Drop this site's tables and options, if this site opted in.
  *
  * @return bool Whether this site opted in and was cleared.
@@ -22,7 +40,7 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 function dragonloginsecurity_uninstall_site(): bool {
 	global $wpdb;
 
-	if ( ! get_option( 'dragonloginsecurity_delete_data_on_uninstall' ) ) {
+	if ( ! dragonloginsecurity_uninstall_opted_in( get_option( 'dragonloginsecurity_delete_data_on_uninstall' ) ) ) {
 		return false;
 	}
 
